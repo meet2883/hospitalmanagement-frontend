@@ -18,11 +18,16 @@ import {
   DialogContent,
   DialogActions,
   Chip,
+  TablePagination,
+  TableSortLabel,
+  TextField,
+  InputAdornment,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
@@ -30,13 +35,88 @@ import { format } from 'date-fns'
 
 const AppointmentList = () => {
   const navigate = useNavigate()
-  const { appointments, fetchAppointments, deleteAppointment, loading } = useApp();
-  console.log('appointments :::: {}', appointments);
+  const { appointments, fetchAppointments, deleteAppointment, loading } = useApp()
   const [deleteDialog, setDeleteDialog] = useState({ open: false, appointment: null })
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // Pagination state
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
+
+  // Sorting state
+  const [orderBy, setOrderBy] = useState('appointmentdatetime')
+  const [order, setOrder] = useState('asc')
 
   useEffect(() => {
     fetchAppointments()
   }, [fetchAppointments])
+
+  // Filter appointments based on search term
+  const filteredAppointments = appointments.filter((appointment) => {
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      appointment.patient_name?.toLowerCase().includes(searchLower) ||
+      appointment.doctor_name?.toLowerCase().includes(searchLower) ||
+      (appointment.appointmentdatetime &&
+        format(new Date(appointment.appointmentdatetime), 'MMM dd, yyyy HH:mm')
+          .toLowerCase()
+          .includes(searchLower))
+    )
+  })
+
+  // Sort appointments
+  const sortedAppointments = React.useMemo(() => {
+    const stabilized = filteredAppointments.map((el, index) => [el, index])
+    stabilized.sort((a, b) => {
+      const aData = a[0]
+      const bData = b[0]
+      const aValue = aData[orderBy]
+      const bValue = bData[orderBy]
+
+      let comparison = 0
+      if (aValue == null) comparison = 1
+      else if (bValue == null) comparison = -1
+      else if (orderBy === 'appointmentdatetime') {
+        // Special handling for date sorting
+        const aDate = new Date(aValue)
+        const bDate = new Date(bValue)
+        comparison = aDate < bDate ? -1 : aDate > bDate ? 1 : 0
+      } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+      } else {
+        comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      }
+
+      return order === 'asc' ? comparison : -comparison
+    })
+    return stabilized.map((el) => el[0])
+  }, [filteredAppointments, orderBy, order])
+
+  // Pagination
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
+  // Sorting
+  const handleSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(property)
+  }
+
+  const createSortHandler = (property) => () => {
+    handleSort(property)
+  }
+
+  const paginatedAppointments = sortedAppointments.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  )
 
   const handleDelete = async () => {
     if (deleteDialog.appointment) {
@@ -54,10 +134,13 @@ const AppointmentList = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 0:
+      case 'SCHEDULE':
         return 'info'
       case 1:
+      case 'DONE':
         return 'success'
       case 2:
+      case 'CANCEL':
         return 'error'
       default:
         return 'default'
@@ -67,15 +150,26 @@ const AppointmentList = () => {
   const getStatusLabel = (status) => {
     switch (status) {
       case 0:
+      case 'SCHEDULE':
         return 'Scheduled'
       case 1:
+      case 'DONE':
         return 'Completed'
       case 2:
+      case 'CANCEL':
         return 'Cancelled'
       default:
         return status
     }
   }
+
+  const headCells = [
+    { id: 'appointmentdatetime', label: 'Date & Time' },
+    { id: 'patient_name', label: 'Patient' },
+    { id: 'doctor_name', label: 'Doctor' },
+    { id: 'status', label: 'Status' },
+    { id: 'actions', label: 'Actions', sortable: false },
+  ]
 
   return (
     <Box>
@@ -92,7 +186,7 @@ const AppointmentList = () => {
             Appointments
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage appointments
+            Manage appointments ({filteredAppointments.length} total)
           </Typography>
         </Box>
         <Button
@@ -106,15 +200,49 @@ const AppointmentList = () => {
 
       <Card>
         <CardContent>
+          <TextField
+            placeholder="Search appointments..."
+            variant="outlined"
+            size="small"
+            fullWidth
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value)
+              setPage(0)
+            }}
+            sx={{ mb: 3 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
           <TableContainer component={Paper} elevation={0}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Date & Time</TableCell>
-                  <TableCell>Patient</TableCell>
-                  <TableCell>Doctor</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  {headCells.map((headCell) => (
+                    <TableCell
+                      key={headCell.id}
+                      align={headCell.id === 'actions' ? 'center' : 'left'}
+                      sortDirection={orderBy === headCell.id ? order : false}
+                    >
+                      {headCell.sortable !== false ? (
+                        <TableSortLabel
+                          active={orderBy === headCell.id}
+                          direction={orderBy === headCell.id ? order : 'asc'}
+                          onClick={createSortHandler(headCell.id)}
+                        >
+                          {headCell.label}
+                        </TableSortLabel>
+                      ) : (
+                        headCell.label
+                      )}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -124,7 +252,7 @@ const AppointmentList = () => {
                       <Typography>Loading...</Typography>
                     </TableCell>
                   </TableRow>
-                ) : appointments.length === 0 ? (
+                ) : sortedAppointments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} align="center">
                       <Typography color="text.secondary">
@@ -133,7 +261,7 @@ const AppointmentList = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  appointments.map((appointment) => (
+                  paginatedAppointments.map((appointment) => (
                     <TableRow key={appointment.id} hover>
                       <TableCell>
                         {appointment.appointmentdatetime
@@ -145,10 +273,12 @@ const AppointmentList = () => {
                       </TableCell>
                       <TableCell>
                         <Typography fontWeight={500}>
-                          {appointment.patient_name || 'N/A'}
+                          {appointment.patient_name || appointment.patientName || 'N/A'}
                         </Typography>
                       </TableCell>
-                      <TableCell>{appointment.doctor_name || 'N/A'}</TableCell>
+                      <TableCell>
+                        {appointment.doctor_name || appointment.doctorName || 'N/A'}
+                      </TableCell>
                       <TableCell>
                         <Chip
                           label={getStatusLabel(appointment.status)}
@@ -176,6 +306,16 @@ const AppointmentList = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={sortedAppointments.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
         </CardContent>
       </Card>
 

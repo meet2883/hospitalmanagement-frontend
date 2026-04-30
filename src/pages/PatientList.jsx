@@ -19,6 +19,8 @@ import {
   DialogActions,
   TextField,
   Chip,
+  TablePagination,
+  TableSortLabel,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -28,7 +30,6 @@ import {
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
-import { format } from 'date-fns'
 
 const PatientList = () => {
   const navigate = useNavigate()
@@ -36,14 +37,72 @@ const PatientList = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [deleteDialog, setDeleteDialog] = useState({ open: false, patient: null })
 
+  // Pagination state
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
+
+  // Sorting state
+  const [orderBy, setOrderBy] = useState('patientName')
+  const [order, setOrder] = useState('asc')
+
   useEffect(() => {
     fetchPatients()
   }, [fetchPatients])
 
+  // Filter patients based on search term
   const filteredPatients = patients.filter((patient) =>
     patient.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.phoneNumber?.includes(searchTerm) ||
     patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Sort patients
+  const sortedPatients = React.useMemo(() => {
+    const stabilized = filteredPatients.map((el, index) => [el, index])
+    stabilized.sort((a, b) => {
+      const aData = a[0]
+      const bData = b[0]
+      const aValue = aData[orderBy]
+      const bValue = bData[orderBy]
+
+      let comparison = 0
+      if (aValue == null) comparison = 1
+      else if (bValue == null) comparison = -1
+      else if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+      } else {
+        comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      }
+
+      return order === 'asc' ? comparison : -comparison
+    })
+    return stabilized.map((el) => el[0])
+  }, [filteredPatients, orderBy, order])
+
+  // Pagination
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
+  // Sorting
+  const handleSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(property)
+  }
+
+  const createSortHandler = (property) => () => {
+    handleSort(property)
+  }
+
+  const paginatedPatients = sortedPatients.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   )
 
   const handleDelete = async () => {
@@ -58,6 +117,16 @@ const PatientList = () => {
   const openDeleteDialog = (patient) => {
     setDeleteDialog({ open: true, patient })
   }
+
+  const headCells = [
+    { id: 'patientName', label: 'Name' },
+    { id: 'age', label: 'Age' },
+    { id: 'gender', label: 'Gender' },
+    { id: 'phoneNumber', label: 'Phone' },
+    { id: 'bloodGroup', label: 'Blood Group' },
+    { id: 'insurance', label: 'Insurance', sortable: false },
+    { id: 'actions', label: 'Actions', sortable: false },
+  ]
 
   return (
     <Box>
@@ -74,7 +143,7 @@ const PatientList = () => {
             Patients
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage patient records
+            Manage patient records ({filteredPatients.length} total)
           </Typography>
         </Box>
         <Button
@@ -103,7 +172,10 @@ const PatientList = () => {
               size="small"
               fullWidth
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setPage(0)
+              }}
             />
           </Box>
 
@@ -111,13 +183,25 @@ const PatientList = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Age</TableCell>
-                  <TableCell>Gender</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Blood Group</TableCell>
-                  <TableCell>Insurance</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  {headCells.map((headCell) => (
+                    <TableCell
+                      key={headCell.id}
+                      align={headCell.id === 'actions' ? 'center' : 'left'}
+                      sortDirection={orderBy === headCell.id ? order : false}
+                    >
+                      {headCell.sortable !== false ? (
+                        <TableSortLabel
+                          active={orderBy === headCell.id}
+                          direction={orderBy === headCell.id ? order : 'asc'}
+                          onClick={createSortHandler(headCell.id)}
+                        >
+                          {headCell.label}
+                        </TableSortLabel>
+                      ) : (
+                        headCell.label
+                      )}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -127,7 +211,7 @@ const PatientList = () => {
                       <Typography>Loading...</Typography>
                     </TableCell>
                   </TableRow>
-                ) : filteredPatients.length === 0 ? (
+                ) : sortedPatients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center">
                       <Typography color="text.secondary">
@@ -136,7 +220,7 @@ const PatientList = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPatients.map((patient) => (
+                  paginatedPatients.map((patient) => (
                     <TableRow key={patient.id} hover>
                       <TableCell>
                         <Typography fontWeight={500}>
@@ -180,6 +264,16 @@ const PatientList = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={sortedPatients.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
         </CardContent>
       </Card>
 

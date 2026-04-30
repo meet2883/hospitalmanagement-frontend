@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Box,
   Grid,
@@ -13,6 +13,8 @@ import {
   TableHead,
   TableRow,
   Chip,
+  TablePagination,
+  Button,
 } from '@mui/material'
 import {
   People as PeopleIcon,
@@ -36,6 +38,10 @@ const Dashboard = () => {
     fetchAppointments,
     fetchInsurances,
   } = useApp()
+
+  // Pagination state for recent appointments
+  const [appointmentsPage, setAppointmentsPage] = useState(0)
+  const [appointmentsRowsPerPage, setAppointmentsRowsPerPage] = useState(5)
 
   useEffect(() => {
     fetchPatients()
@@ -101,7 +107,10 @@ const Dashboard = () => {
     }
   }
 
-  const recentAppointments = appointments.slice(0, 5)
+  const recentAppointments = appointments.slice(
+    appointmentsPage * appointmentsRowsPerPage,
+    appointmentsPage * appointmentsRowsPerPage + appointmentsRowsPerPage
+  )
 
   return (
     <Box>
@@ -166,45 +175,68 @@ const Dashboard = () => {
       <Grid container spacing={3} sx={{ mt: 4 }}>
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600}>
-              Recent Appointments
-            </Typography>
-            {recentAppointments.length > 0 ? (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date & Time</TableCell>
-                      <TableCell>Patient</TableCell>
-                      <TableCell>Doctor</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {recentAppointments.map((appointment) => (
-                      <TableRow key={appointment.id} hover>
-                        <TableCell>
-                          {appointment.appointmentdatetime
-                            ? format(
-                                new Date(appointment.appointmentdatetime),
-                                'MMM dd, yyyy HH:mm'
-                              )
-                            : 'N/A'}
-                        </TableCell>
-                        <TableCell>{appointment.patientName || 'N/A'}</TableCell>
-                        <TableCell>{appointment.doctorName || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={getStatusLabel(appointment.status)}
-                            color={getStatusColor(appointment.status)}
-                            size="small"
-                          />
-                        </TableCell>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" fontWeight={600}>
+                Recent Appointments
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => navigate('/appointments')}
+              >
+                View All
+              </Button>
+            </Box>
+            {appointments.length > 0 ? (
+              <>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date & Time</TableCell>
+                        <TableCell>Patient</TableCell>
+                        <TableCell>Doctor</TableCell>
+                        <TableCell>Status</TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {recentAppointments.map((appointment) => (
+                        <TableRow key={appointment.id} hover>
+                          <TableCell>
+                            {appointment.appointmentdatetime
+                              ? format(
+                                  new Date(appointment.appointmentdatetime),
+                                  'MMM dd, yyyy HH:mm'
+                                )
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell>{appointment.patientName || appointment.patient_name || 'N/A'}</TableCell>
+                          <TableCell>{appointment.doctorName || appointment.doctor_name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={getStatusLabel(appointment.status)}
+                              color={getStatusColor(appointment.status)}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  rowsPerPageOptions={[5, 10, 25]}
+                  component="div"
+                  count={appointments.length}
+                  rowsPerPage={appointmentsRowsPerPage}
+                  page={appointmentsPage}
+                  onPageChange={(e, newPage) => setAppointmentsPage(newPage)}
+                  onRowsPerPageChange={(e) => {
+                    setAppointmentsRowsPerPage(parseInt(e.target.value, 10))
+                    setAppointmentsPage(0)
+                  }}
+                  sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 2 }}
+                />
+              </>
             ) : (
               <Typography variant="body2" color="text.secondary">
                 No appointments found
