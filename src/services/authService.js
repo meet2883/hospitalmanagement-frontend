@@ -35,7 +35,7 @@ export const authService = {
   // Sign in with username and password
   signIn: async (username, password) => {
     try {
-      const response = await api.post('/auth/sign-in', { name: username, password })
+      const response = await api.post('/auth/sign-in', { email: username, password })
 
       // Extract token from response headers (authorization header)
       const authHeader = response.headers?.authorization || response.headers?.Authorization

@@ -15,6 +15,8 @@ const routeConfig = {
   '/appointments/new': ['ADMIN', 'EMPLOYEE'],
   '/insurance': ['ADMIN'],
   '/insurance/new': ['ADMIN'],
+  '/users': ['ADMIN'],
+  '/users/new': ['ADMIN'],
 }
 
 const ProtectedLayout = () => {

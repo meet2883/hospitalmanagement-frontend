@@ -9,6 +9,8 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
+  Alert,
+  Collapse,
 } from '@mui/material'
 import {
   Visibility as VisibilityIcon,
@@ -24,11 +26,12 @@ const SignIn = () => {
   const { showNotification, signIn: contextSignIn, isAuthenticated } = useApp()
 
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   })
 
   const [errors, setErrors] = useState({})
+  const [apiError, setApiError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loginSuccess, setLoginSuccess] = useState(false)
@@ -48,34 +51,30 @@ const SignIn = () => {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-    // Clear error when user starts typing
+    // Clear field errors when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }))
+    }
+    // Clear API error when user starts typing
+    if (apiError) {
+      setApiError('')
     }
   }
 
   const validate = () => {
     const newErrors = {}
 
-    // Username validation
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required'
-    } 
-    // else if (formData.username.length < 3) {
-    //   newErrors.username = 'Username must be at least 3 characters'
-    // } else if (formData.username.length > 50) {
-    //   newErrors.username = 'Username must not exceed 50 characters'
-    // } else if (!/^[a-zA-Z0-9_@.-]+$/.test(formData.username)) {
-    //   newErrors.username = 'Username can only contain letters, numbers, and _@.-'
-    // }
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
 
     // Password validation
     if (!formData.password) {
       newErrors.password = 'Password is required'
-    } 
-    // else if (formData.password.length < 6) {
-    //   newErrors.password = 'Password must be at least 6 characters'
-    // }
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -89,10 +88,11 @@ const SignIn = () => {
     }
 
     setIsSubmitting(true)
+    setApiError('')
 
     try {
       const success = await contextSignIn(
-        formData.username,
+        formData.email,
         formData.password
       )
 
@@ -101,7 +101,30 @@ const SignIn = () => {
         setLoginSuccess(true)
       }
     } catch (error) {
-      showNotification(error.message || 'Sign in failed', 'error')
+      // Handle different types of errors
+      const errorMessage = error.message || 'Sign in failed'
+      let displayError = errorMessage
+
+      // Map common errors to user-friendly messages
+      if (errorMessage.toLowerCase().includes('bad credentials') ||
+          errorMessage.toLowerCase().includes('invalid') ||
+          errorMessage.toLowerCase().includes('unauthorized')) {
+        displayError = 'Invalid email or password'
+        setErrors({
+          email: ' ',
+          password: ' '
+        })
+      } else if (errorMessage.toLowerCase().includes('network')) {
+        displayError = 'Network error. Please check your connection and try again.'
+      } else if (errorMessage.toLowerCase().includes('timeout')) {
+        displayError = 'Request timed out. Please try again.'
+      } else if (errorMessage.toLowerCase().includes('server') ||
+                 errorMessage.toLowerCase().includes('500')) {
+        displayError = 'Server error. Please try again later.'
+      }
+
+      setApiError(displayError)
+      showNotification(displayError, 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -143,29 +166,34 @@ const SignIn = () => {
             </Typography>
           </Box>
 
+          {/* API Error Alert */}
+          <Collapse in={!!apiError}>
+            <Alert
+              severity="error"
+              sx={{ mb: 3 }}
+              onClose={() => setApiError('')}
+            >
+              {apiError}
+            </Alert>
+          </Collapse>
+
           {/* Form */}
           <form onSubmit={handleSubmit}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* Username Field */}
+              {/* Email Field */}
               <TextField
-                name="username"
-                label="Username"
+                name="email"
+                label="Email"
+                type="email"
                 fullWidth
-                value={formData.username}
+                value={formData.email}
                 onChange={handleChange}
-                error={!!errors.username}
-                helperText={errors.username}
+                error={!!errors.email || !!apiError}
+                helperText={errors.email || (apiError && ' ')}
                 disabled={isSubmitting}
-                autoComplete="username"
+                autoComplete="email"
                 autoFocus
                 required
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">@</InputAdornment>
-                    ),
-                  },
-                }}
               />
 
               {/* Password Field */}
@@ -176,34 +204,32 @@ const SignIn = () => {
                 fullWidth
                 value={formData.password}
                 onChange={handleChange}
-                error={!!errors.password}
-                helperText={errors.password}
+                error={!!errors.password || !!apiError}
+                helperText={errors.password || (apiError && ' ')}
                 disabled={isSubmitting}
                 autoComplete="current-password"
                 required
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={togglePasswordVisibility}
-                          edge="end"
-                          disabled={isSubmitting}
-                          aria-label={
-                            showPassword
-                              ? 'Hide password'
-                              : 'Show password'
-                          }
-                        >
-                          {showPassword ? (
-                            <VisibilityOffIcon />
-                          ) : (
-                            <VisibilityIcon />
-                          )}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={togglePasswordVisibility}
+                        edge="end"
+                        disabled={isSubmitting}
+                        aria-label={
+                          showPassword
+                            ? 'Hide password'
+                            : 'Show password'
+                        }
+                      >
+                        {showPassword ? (
+                          <VisibilityOffIcon />
+                        ) : (
+                          <VisibilityIcon />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
                 }}
               />
 

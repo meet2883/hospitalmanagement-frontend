@@ -12,6 +12,7 @@ import AppointmentForm from './pages/AppointmentForm'
 import AppointmentUpdateForm from './pages/AppointmentUpdateForm'
 import InsuranceList from './pages/InsuranceList'
 import InsuranceForm from './pages/InsuranceForm'
+import UserForm from './pages/UserForm'
 import SignIn from './pages/SignIn'
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/insurance" element={<InsuranceList />} />
           <Route path="/insurance/new" element={<InsuranceForm />} />
           <Route path="/insurance/:id/edit" element={<InsuranceForm />} />
+          <Route path="/users/new" element={<UserForm />} />
         </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
