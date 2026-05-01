@@ -1,4 +1,6 @@
 import axios from 'axios'
+import Cookies from 'js-cookie'
+import { getToken } from './cookies'
 
 const api = axios.create({
   baseURL: '/api',
@@ -10,11 +12,15 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth token here if needed
-    // const token = localStorage.getItem('token')
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`
-    // }
+    // Add auth token if available
+    const token = getToken()
+    console.log('Token from cookie:', token)
+    if (token) {
+      // Ensure token doesn't already have "Bearer" prefix
+      const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token
+      config.headers.Authorization = `Bearer ${cleanToken}`
+      console.log('Authorization header:', config.headers.Authorization)
+    }
     return config
   },
   (error) => {
@@ -28,9 +34,25 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
+    console.error('API Error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    })
+
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      console.error('Unauthorized access')
+      // Handle unauthorized access - clear token and redirect to signin
+      Cookies.remove('auth_token')
+      Cookies.remove('auth_user')
+      window.location.href = '/signin'
+    }
+    if (error.response?.status === 403) {
+      console.error('Forbidden - You may not have permission to access this resource')
     }
     return Promise.reject(error)
   }

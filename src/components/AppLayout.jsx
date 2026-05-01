@@ -12,6 +12,8 @@ import {
   ListItemText,
   ListItemButton,
   Divider,
+  Button,
+  Avatar,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
@@ -22,8 +24,11 @@ import {
   LocalHospital as DoctorIcon,
   Event as AppointmentIcon,
   Security as InsuranceIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useApp } from '../contexts/AppContext'
 
 const drawerWidth = 240
 
@@ -41,6 +46,7 @@ const AppLayout = ({ children }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, signOut } = useApp()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -53,10 +59,14 @@ const AppLayout = ({ children }) => {
     }
   }
 
+  const handleLogout = async () => {
+    await signOut()
+    navigate('/signin')
+  }
+
   const drawer = (
     <Box>
       <Toolbar>
-        {/* // <LocalHospital sx={{ mr: 1, color: 'primary.main' }} /> */}
         <Typography variant="h6" noWrap component="div" fontWeight={600}>
           HMS
         </Typography>
@@ -92,6 +102,17 @@ const AppLayout = ({ children }) => {
           </ListItem>
         ))}
       </List>
+      <Divider />
+      <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleLogout}>
+            <ListItemIcon>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
+        </ListItem>
+      </List>
     </Box>
   )
 
@@ -114,9 +135,27 @@ const AppLayout = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" fontWeight={600}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }} fontWeight={600}>
             Hospital Management System
           </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark' }}>
+                <PersonIcon />
+              </Avatar>
+              <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                {user?.name || user?.username || 'User'}
+              </Typography>
+            </Box>
+            <Button
+              color="inherit"
+              startIcon={<LogoutIcon />}
+              onClick={handleLogout}
+              sx={{ textTransform: 'none' }}
+            >
+              <Typography sx={{ display: { xs: 'none', md: 'block' } }}>Logout</Typography>
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box

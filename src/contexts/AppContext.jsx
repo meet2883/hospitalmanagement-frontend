@@ -3,6 +3,7 @@ import { patientService } from '../services/patientService'
 import { doctorService } from '../services/doctorService'
 import { appointmentService } from '../services/appointmentService'
 import { insuranceService } from '../services/insuranceService'
+import { authService } from '../services/authService'
 
 const AppContext = createContext()
 
@@ -26,6 +27,10 @@ export const AppProvider = ({ children }) => {
     message: '',
     severity: 'success',
   })
+  const [user, setUser] = useState(() => authService.getUser())
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    authService.isAuthenticated()
+  )
 
   const showNotification = useCallback((message, severity = 'success') => {
     setNotification({ open: true, message, severity })
@@ -291,6 +296,38 @@ export const AppProvider = ({ children }) => {
     }
   }
 
+  // Auth operations
+  const signIn = async (username, password) => {
+    setLoading(true)
+    try {
+      const data = await authService.signIn(username, password)
+      console.log('Context signIn - received data:', data)
+      console.log('Context signIn - user to set:', data.user)
+
+      setUser(data.user)
+      setIsAuthenticated(true)
+
+      console.log('Context signIn - isAuthenticated set to true')
+
+      showNotification('Signed in successfully')
+      return true
+    } catch (err) {
+      console.error('Context signIn - error:', err)
+      setError(err.message)
+      showNotification(err.message || 'Sign in failed', 'error')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signOut = async () => {
+    await authService.signOut()
+    setUser(null)
+    setIsAuthenticated(false)
+    showNotification('Signed out successfully')
+  }
+
   const value = {
     patients,
     doctors,
@@ -299,6 +336,8 @@ export const AppProvider = ({ children }) => {
     loading,
     error,
     notification,
+    user,
+    isAuthenticated,
     fetchPatients,
     createPatient,
     updatePatient,
@@ -315,6 +354,8 @@ export const AppProvider = ({ children }) => {
     createInsurance,
     updateInsurance,
     deleteInsurance,
+    signIn,
+    signOut,
     showNotification,
     closeNotification,
   }
