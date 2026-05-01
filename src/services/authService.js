@@ -7,7 +7,6 @@ const USER_COOKIE_NAME = 'auth_user'
 
 // Helper function to extract data from ApiResponse
 const extractData = (response) => {
-  console.log('API Response:', response.data)
 
   // Handle different response formats
   if (response.data?.success) {
@@ -36,28 +35,22 @@ export const authService = {
   // Sign in with username and password
   signIn: async (username, password) => {
     try {
-      console.log('=== SignIn Started ===')
       const response = await api.post('/auth/sign-in', { name: username, password })
-      console.log('Raw API response:', response)
 
       // Extract token from response headers (authorization header)
       const authHeader = response.headers?.authorization || response.headers?.Authorization
-      console.log('Authorization header:', authHeader)
 
       let token = null
       if (authHeader) {
         token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader
-        console.log('Token extracted from header:', token.substring(0, 20) + '...')
       }
 
       if (token) {
         // Store in sessionStorage for Authorization header (JS-readable)
         setToken(token)
-        console.log('setToken called, checking sessionStorage...')
 
         // Verify it was stored
         const storedToken = sessionStorage.getItem('auth_token')
-        console.log('Token in sessionStorage after setToken:', storedToken ? 'FOUND' : 'NOT FOUND')
 
         // Also store in cookie for backend compatibility
         Cookies.set(TOKEN_COOKIE_NAME, token, {
@@ -66,32 +59,39 @@ export const authService = {
           sameSite: 'Lax',
           path: '/'
         })
-        console.log('Token stored in cookie')
       } else {
-        console.error('NO TOKEN FOUND IN RESPONSE HEADERS!')
         throw new Error('No token received from server')
       }
 
       // Extract user data from response body
       const data = extractData(response)
-      console.log('Response body data:', data)
 
+      // User data structure: { role: "[ROLE_ADMIN]", name: "Meet Panchal" }
       const userData = data.user || data.data || data
+
+      // Parse role to extract clean role name (e.g., "[ROLE_ADMIN]" -> "ROLE_ADMIN" -> "ADMIN")
+      let cleanRole = 'EMPLOYEE' // default
+      if (userData.role) {
+        // Handle both "[ROLE_ADMIN]" and "ROLE_ADMIN" formats
+        const roleMatch = userData.role.match(/ROLE_(\w+)/)
+        if (roleMatch) {
+          cleanRole = roleMatch[1]
+        }
+      }
+      userData.role = cleanRole
+
       Cookies.set(USER_COOKIE_NAME, JSON.stringify(userData), {
         expires: 7,
         secure: false,
         sameSite: 'Lax',
         path: '/'
       })
-      console.log('User data stored in cookie:', userData)
 
       // Return consistent structure
       const result = {
         token: token,
         user: userData
       }
-      console.log('Returning from signIn:', result)
-      console.log('=== SignIn Completed ===')
       return result
     } catch (error) {
       console.error('Sign in error:', error)

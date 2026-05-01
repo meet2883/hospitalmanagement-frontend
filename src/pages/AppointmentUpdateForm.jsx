@@ -49,15 +49,9 @@ const AppointmentUpdateForm = () => {
       return
     }
 
-    console.log('Patients:', patients)
-    console.log('Doctors:', doctors)
-    console.log('Appointments:', appointments)
-
     // Find the appointment to edit
     const appointmentToEdit = appointments.find((apt) => apt.id === parseInt(id))
     if (appointmentToEdit) {
-      console.log('Appointment to edit:', appointmentToEdit)
-
       // Match patient by name to find the ID
       const matchedPatient = patients.find(
         (p) => p.patientName === appointmentToEdit.patientName ||
@@ -69,9 +63,6 @@ const AppointmentUpdateForm = () => {
         (d) => d.name === appointmentToEdit.doctorName ||
                d.name === appointmentToEdit.doctor_name
       )
-
-      console.log('Matched patient:', matchedPatient)
-      console.log('Matched doctor:', matchedDoctor)
 
       // Handle status - could be string or numeric (from enum ordinal)
       let statusValue = appointmentToEdit.status
@@ -91,8 +82,6 @@ const AppointmentUpdateForm = () => {
           : '',
         status: statusValue || 'SCHEDULE',
       }
-
-      console.log('Setting form data:', newFormData)
       setFormData(newFormData)
     } else {
       console.log('Appointment not found with id:', id)

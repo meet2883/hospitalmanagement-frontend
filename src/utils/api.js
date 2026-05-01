@@ -14,12 +14,10 @@ api.interceptors.request.use(
   (config) => {
     // Add auth token if available
     const token = getToken()
-    console.log('Token from cookie:', token)
     if (token) {
       // Ensure token doesn't already have "Bearer" prefix
       const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token
       config.headers.Authorization = `Bearer ${cleanToken}`
-      console.log('Authorization header:', config.headers.Authorization)
     }
     return config
   },

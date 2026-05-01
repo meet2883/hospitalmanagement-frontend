@@ -10,12 +10,22 @@ const AppContext = createContext()
 export const useApp = () => {
   const context = useContext(AppContext)
   if (!context) {
+    console.error('useApp must be used within AppProvider')
     throw new Error('useApp must be used within AppProvider')
   }
   return context
 }
 
 export const AppProvider = ({ children }) => {
+  // Initialize user from stored data
+  const [user, setUser] = useState(() => {
+    const storedUser = authService.getUser()
+    return storedUser
+  })
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const auth = authService.isAuthenticated()
+    return auth
+  })
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [appointments, setAppointments] = useState([])
@@ -27,10 +37,6 @@ export const AppProvider = ({ children }) => {
     message: '',
     severity: 'success',
   })
-  const [user, setUser] = useState(() => authService.getUser())
-  const [isAuthenticated, setIsAuthenticated] = useState(() =>
-    authService.isAuthenticated()
-  )
 
   const showNotification = useCallback((message, severity = 'success') => {
     setNotification({ open: true, message, severity })
@@ -301,14 +307,9 @@ export const AppProvider = ({ children }) => {
     setLoading(true)
     try {
       const data = await authService.signIn(username, password)
-      console.log('Context signIn - received data:', data)
-      console.log('Context signIn - user to set:', data.user)
 
       setUser(data.user)
       setIsAuthenticated(true)
-
-      console.log('Context signIn - isAuthenticated set to true')
-
       showNotification('Signed in successfully')
       return true
     } catch (err) {

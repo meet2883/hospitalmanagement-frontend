@@ -32,13 +32,18 @@ import { useApp } from '../contexts/AppContext'
 
 const drawerWidth = 240
 
-const navigationItems = [
-  { text: 'Dashboard', path: '/', icon: <DashboardIcon /> },
-  { text: 'Patients', path: '/patients', icon: <PeopleIcon /> },
-  { text: 'Doctors', path: '/doctors', icon: <DoctorIcon /> },
-  { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon /> },
-  { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon /> },
-]
+// Role-based navigation configuration
+const getNavigationItems = (role) => {
+  const allItems = [
+    { text: 'Dashboard', path: '/', icon: <DashboardIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
+    { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
+    { text: 'Doctors', path: '/doctors', icon: <DoctorIcon />, roles: ['ADMIN'] },
+    { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
+    { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon />, roles: ['ADMIN'] },
+  ]
+
+  return allItems.filter(item => item.roles.includes(role))
+}
 
 const AppLayout = ({ children }) => {
   const theme = useTheme()
@@ -47,6 +52,12 @@ const AppLayout = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, signOut } = useApp()
+
+  // Get user role (default to EMPLOYEE if not set)
+  const userRole = user?.role || 'EMPLOYEE'
+
+  // Get navigation items based on user role
+  const navigationItems = React.useMemo(() => getNavigationItems(userRole), [userRole])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -141,11 +152,16 @@ const AppLayout = ({ children }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark' }}>
-                <PersonIcon />
+                {user?.name?.charAt(0)?.toUpperCase() || <PersonIcon />}
               </Avatar>
-              <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                {user?.name || user?.username || 'User'}
-              </Typography>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Typography variant="body2" fontWeight={500}>
+                  {user?.name || 'User'}
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                  {userRole}
+                </Typography>
+              </Box>
             </Box>
             <Button
               color="inherit"
