@@ -316,7 +316,7 @@ export const AppProvider = ({ children }) => {
       console.error('Context signIn - error:', err)
       setError(err.message)
       showNotification(err.message || 'Sign in failed', 'error')
-      return false
+      throw err
     } finally {
       setLoading(false)
     }

@@ -43,11 +43,18 @@ api.interceptors.response.use(
       }
     })
 
+    // Only redirect on 401 if we're NOT on the sign-in page
+    // (don't redirect when user is trying to login with wrong credentials)
     if (error.response?.status === 401) {
-      // Handle unauthorized access - clear token and redirect to signin
-      Cookies.remove('auth_token')
-      Cookies.remove('auth_user')
-      window.location.href = '/signin'
+      const currentPath = window.location.pathname
+      if (currentPath !== '/signin' && currentPath !== '/sign-in') {
+        // Handle unauthorized access - clear token and redirect to signin
+        Cookies.remove('auth_token')
+        Cookies.remove('auth_user')
+        sessionStorage.removeItem('auth_token')
+        window.location.href = '/signin'
+      }
+      // If we're on sign-in page, let the component handle the error
     }
     if (error.response?.status === 403) {
       console.error('Forbidden - You may not have permission to access this resource')
