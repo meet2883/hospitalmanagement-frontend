@@ -172,21 +172,6 @@ export const AppProvider = ({ children }) => {
     }
   }
 
-  // Appointment operations
-  const fetchAppointments = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await appointmentService.getAllAppointments()
-      setAppointments(data)
-    } catch (err) {
-      setError(err.message)
-      showNotification(err.message || 'Failed to fetch appointments', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [showNotification])
-
   const fetchAppointmentsByDoctorId = async (doctorId) => {
     setLoading(true)
     try {
@@ -199,6 +184,19 @@ export const AppProvider = ({ children }) => {
       setLoading(false)
     }
   }
+
+  const fetchAppointments = useCallback(async (obj) => {
+    setLoading(true)
+    try {
+      const data = await appointmentService.getAppointments(obj)
+      setAppointments(data)
+    } catch (error) {
+      setError(err.message)
+      showNotification(err.message || 'Failed to fetch appointments', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showNotification])
 
   const createAppointment = async (appointmentData, patientId, doctorId) => {
     setLoading(true)
@@ -360,7 +358,6 @@ export const AppProvider = ({ children }) => {
     createDoctor,
     updateDoctor,
     deleteDoctor,
-    fetchAppointments,
     createAppointment,
     updateAppointment,
     deleteAppointment,
@@ -372,7 +369,8 @@ export const AppProvider = ({ children }) => {
     signOut,
     showNotification,
     closeNotification,
-    fetchAppointmentsByDoctorId
+    fetchAppointmentsByDoctorId,
+    fetchAppointments
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

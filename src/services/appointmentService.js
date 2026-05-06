@@ -11,14 +11,29 @@ const extractData = (response) => {
 // Convert snake_case keys to camelCase for appointment data
 const convertAppointmentKeys = (appointments) => {
   if (Array.isArray(appointments)) {
-    return appointments.map((apt) => ({
-      ...apt,
-      patientName: apt.patient_name,
-      doctorName: apt.doctor_name,
-      patientId: apt.patient_id || apt.patientId,
-      doctorId: apt.doctor_id || apt.doctorId,
-      appointmentdatetime: apt.date, // Map 'date' to 'appointmentdatetime'
-    }))
+    return appointments.map((apt) => {
+      // Handle nested patient and doctor objects from backend
+      const appointmentdatetime = apt.appointmentdatetime || apt.appointmentDateTime || apt.date || apt.appointment_date
+      const patientName = apt.patient?.patientName || apt.patient_name || apt.patientName || apt.patient?.name
+      const doctorName = apt.doctor?.name || apt.doctor_name || apt.doctorName || apt.doctor?.doctorName
+      const patientId = apt.patient?.id || apt.patient_id || apt.patientId
+      const doctorId = apt.doctor?.id || apt.doctor_id || apt.doctorId
+      const status = apt.status || apt.appointmentStatus
+
+      return {
+        ...apt,
+        // Preserve original fields and add mapped fields
+        patientName: patientName || 'N/A',
+        doctorName: doctorName || 'N/A',
+        patientId,
+        doctorId,
+        appointmentdatetime,
+        status,
+        // Also preserve snake_case versions for compatibility
+        patient_name: patientName || 'N/A',
+        doctor_name: doctorName || 'N/A',
+      }
+    })
   }
   return appointments
 }
@@ -59,5 +74,27 @@ export const appointmentService = {
     const response = await api.get(`/appointment/get-appointment-by-doctor/${id}`)
     const data = extractData(response)
     return convertAppointmentKeys(data)
+  },
+
+  getAppointments: async (filters) => {
+    let filter = {};
+
+    if (filters && filters.date) {
+      filter['date'] = filters.date
+    }
+    if (filters && filters.status) {
+      filter['status'] = filters.status
+    }
+    if (filters && filters.patientName) {
+      filter['patientName'] = filters.patientName
+    }
+    if (filters && filters.doctorName) {
+      filter['doctorName'] = filters.doctorName
+    }
+
+    const response = await api.get(`/appointment/filter`, { params: filter })
+    const data = extractData(response)
+    const converted = convertAppointmentKeys(data)
+    return converted
   }
 }

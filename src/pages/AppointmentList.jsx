@@ -47,7 +47,9 @@ const AppointmentList = () => {
 
   // Get user role
   const userRole = user?.role || 'EMPLOYEE'
-  const canModify = userRole === 'ADMIN'
+  const canEdit = userRole === 'ADMIN' || userRole === 'DOCTOR'
+  const canDelete = userRole === 'ADMIN'
+  const canModify = userRole === 'ADMIN' // For creating new appointments
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -66,74 +68,63 @@ const AppointmentList = () => {
   const [order, setOrder] = useState('asc')
 
   useEffect(() => {
-    if (userRole === "DOCTOR") {
-      fetchAppointmentsByDoctorId(user.id)
-    } else {
-      fetchAppointments()
+    // Fetch appointments on mount and when user changes
+    const fetchInitialData = async () => {
+      if (userRole === "DOCTOR") {
+        // For doctors, set the filter and fetch with doctorName
+        setFilters({ doctorName: user?.name })
+        await fetchAppointments({ doctorName: user?.name })
+      } else {
+        // For admin/employee, fetch all without filters
+        await fetchAppointments()
+      }
     }
+
+    fetchInitialData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole, user])
 
-  // Filter appointments based on all filters
-  const filteredAppointments = (appointments || []).filter((appointment) => {
-    // Date filter (without time)
-    if (filters.date) {
-      const appointmentDate = appointment.appointmentdatetime
-        ? parseISO(appointment.appointmentdatetime)
-        : null
-      if (appointmentDate) {
-        const appointmentDateOnly = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate())
-        const filterDateOnly = new Date(filters.date.getFullYear(), filters.date.getMonth(), filters.date.getDate())
-        if (appointmentDateOnly.getTime() !== filterDateOnly.getTime()) {
-          return false
-        }
-      } else {
-        return false
-      }
-    }
-
-    // Status filter
-    if (filters.status !== '') {
-      const statusValue = typeof appointment.status === 'number' ? appointment.status :
-                          appointment.status === 'SCHEDULE' ? 0 :
-                          appointment.status === 'DONE' ? 1 :
-                          appointment.status === 'CANCEL' ? 2 : -1
-      if (statusValue !== parseInt(filters.status)) {
-        return false
-      }
-    }
-
-    // Patient name filter
-    if (filters.patientName) {
-      const patientName = (appointment.patient_name || appointment.patientName || '').toLowerCase()
-      if (!patientName.includes(filters.patientName.toLowerCase())) {
-        return false
-      }
-    }
-
-    // Doctor name filter
-    if (filters.doctorName) {
-      const doctorName = (appointment.doctor_name || appointment.doctorName || '').toLowerCase()
-      if (!doctorName.includes(filters.doctorName.toLowerCase())) {
-        return false
-      }
-    }
-
-    return true
-  })
+  // Since API handles filtering, use appointments directly
+  // But we still need to handle sorting and pagination
+  const filteredAppointments = appointments || []
 
   // Check if any filter is active
   const hasActiveFilters = filters.date || filters.status !== '' || filters.patientName || filters.doctorName
 
+  // Helper function to apply filters and fetch from API
+  const applyFilters = async (newFilters) => {
+    setFilters(newFilters)
+    setPage(0)
+
+    // Build API filter object (only include non-empty filters)
+    const apiFilters = {}
+    if (newFilters.date) {
+      // Format date as YYYY/MM/DD for backend
+      const formattedDate = `${newFilters.date.getFullYear()}/${(newFilters.date.getMonth() + 1).toString().padStart(2, '0')}/${newFilters.date.getDate().toString().padStart(2, '0')}`
+      apiFilters.date = formattedDate
+    }
+    if (newFilters.status) {
+      apiFilters.status = newFilters.status
+    }
+    if (newFilters.patientName) {
+      apiFilters.patientName = newFilters.patientName
+    }
+    if (newFilters.doctorName) {
+      apiFilters.doctorName = newFilters.doctorName
+    }
+
+    await fetchAppointments(apiFilters)
+  }
+
   // Clear all filters
-  const clearFilters = () => {
-    setFilters({
+  const clearFilters = async () => {
+    const clearedFilters = {
       date: null,
       status: '',
       patientName: '',
       doctorName: '',
-    })
-    setPage(0)
+    }
+    await applyFilters(clearedFilters)
   }
 
   // Sort appointments
@@ -237,7 +228,7 @@ const AppointmentList = () => {
     { id: 'patient_name', label: 'Patient' },
     { id: 'doctor_name', label: 'Doctor' },
     { id: 'status', label: 'Status' },
-    ...(canModify ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
+    ...(canEdit ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
   ]
 
   const activeFilterCount = [
@@ -262,7 +253,7 @@ const AppointmentList = () => {
             Appointments
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {canModify ? 'Manage' : 'View'} appointments ({filteredAppointments.length} of {(appointments || []).length})
+            {canModify ? 'Manage' : canEdit ? 'View & Update' : 'View'} appointments ({filteredAppointments.length} of {(appointments || []).length})
           </Typography>
         </Box>
         {canModify && (
@@ -321,8 +312,7 @@ const AppointmentList = () => {
                     label="Date"
                     value={filters.date}
                     onChange={(newValue) => {
-                      setFilters({ ...filters, date: newValue })
-                      setPage(0)
+                      applyFilters({ ...filters, date: newValue })
                     }}
                     format="MMM dd, yyyy"
                     desktopModeMediaQuery="@media (hover: none)"
@@ -347,14 +337,13 @@ const AppointmentList = () => {
                     label="Status"
                     value={filters.status}
                     onChange={(e) => {
-                      setFilters({ ...filters, status: e.target.value })
-                      setPage(0)
+                      applyFilters({ ...filters, status: e.target.value })
                     }}
                   >
                     <MenuItem value="">All</MenuItem>
-                    <MenuItem value="0">Scheduled</MenuItem>
-                    <MenuItem value="1">Completed</MenuItem>
-                    <MenuItem value="2">Cancelled</MenuItem>
+                    <MenuItem value="SCHEDULE">Scheduled</MenuItem>
+                    <MenuItem value="DONE">Completed</MenuItem>
+                    <MenuItem value="CANCEL">Cancelled</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -367,8 +356,7 @@ const AppointmentList = () => {
                   fullWidth
                   value={filters.patientName}
                   onChange={(e) => {
-                    setFilters({ ...filters, patientName: e.target.value })
-                    setPage(0)
+                    applyFilters({ ...filters, patientName: e.target.value })
                   }}
                   placeholder="Search patient..."
                 />
@@ -382,8 +370,7 @@ const AppointmentList = () => {
                   fullWidth
                   value={filters.doctorName}
                   onChange={(e) => {
-                    setFilters({ ...filters, doctorName: e.target.value })
-                    setPage(0)
+                    applyFilters({ ...filters, doctorName: e.target.value })
                   }}
                   placeholder="Search doctor..."
                 />
@@ -403,7 +390,7 @@ const AppointmentList = () => {
                 }}
               >
                 <Typography variant="body2">
-                  <strong>{filteredAppointments.length}</strong> of {(appointments || []).length} appointments match your filters
+                  Found <strong>{filteredAppointments.length}</strong> appointment{filteredAppointments.length !== 1 ? 's' : ''} matching your filters
                 </Typography>
               </Alert>
             )}
@@ -437,13 +424,13 @@ const AppointmentList = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={canModify ? 5 : 4} align="center">
+                    <TableCell colSpan={canEdit ? 5 : 4} align="center">
                       <Typography>Loading...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : sortedAppointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canModify ? 5 : 4} align="center">
+                    <TableCell colSpan={canEdit ? 5 : 4} align="center">
                       <Typography color="text.secondary">
                         {hasActiveFilters ? 'No appointments match your filters' : 'No appointments found'}
                       </Typography>
@@ -475,7 +462,7 @@ const AppointmentList = () => {
                           size="small"
                         />
                       </TableCell>
-                      {canModify && (
+                      {canEdit && (
                         <TableCell align="center">
                           <IconButton
                             color="primary"
@@ -483,12 +470,14 @@ const AppointmentList = () => {
                           >
                             <EditIcon />
                           </IconButton>
-                          <IconButton
-                            color="error"
-                            onClick={() => openDeleteDialog(appointment)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                          {canDelete && (
+                            <IconButton
+                              color="error"
+                              onClick={() => openDeleteDialog(appointment)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
