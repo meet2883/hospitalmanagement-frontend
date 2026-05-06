@@ -39,7 +39,6 @@ const getNavigationItems = (role) => {
   const allItems = [
     { text: 'Dashboard', path: '/dashboard', icon: <DashboardIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
-    { text: 'Doctors', path: '/doctors', icon: <DoctorIcon />, roles: ['ADMIN'] },
     { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon />, roles: ['ADMIN'] },
     { text: 'Create User', path: '/users/new', icon: <PersonAddIcon />, roles: ['ADMIN'] },

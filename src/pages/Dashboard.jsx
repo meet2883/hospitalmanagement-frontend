@@ -18,9 +18,9 @@ import {
 } from '@mui/material'
 import {
   People as PeopleIcon,
-  LocalHospital as DoctorIcon,
   Event as AppointmentIcon,
   Security as InsuranceIcon,
+  AssignmentInd as AssignmentIndIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
@@ -30,11 +30,9 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const {
     patients,
-    doctors,
     appointments,
     insurances,
     fetchPatients,
-    fetchDoctors,
     fetchAppointments,
     fetchInsurances,
   } = useApp()
@@ -45,10 +43,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchPatients()
-    fetchDoctors()
     fetchAppointments()
     fetchInsurances()
-  }, [fetchPatients, fetchDoctors, fetchAppointments, fetchInsurances])
+  }, [fetchPatients, fetchAppointments, fetchInsurances])
 
   const stats = [
     {
@@ -57,13 +54,6 @@ const Dashboard = () => {
       icon: <PeopleIcon sx={{ fontSize: 40 }} />,
       color: '#1976d2',
       path: '/patients',
-    },
-    {
-      title: 'Total Doctors',
-      value: doctors.length,
-      icon: <DoctorIcon sx={{ fontSize: 40 }} />,
-      color: '#9c27b0',
-      path: '/doctors',
     },
     {
       title: 'Appointments',
@@ -78,6 +68,13 @@ const Dashboard = () => {
       icon: <InsuranceIcon sx={{ fontSize: 40 }} />,
       color: '#ed6c02',
       path: '/insurance',
+    },
+    {
+      title: 'Create User',
+      value: '+',
+      icon: <AssignmentIndIcon sx={{ fontSize: 40 }} />,
+      color: '#9c27b0',
+      path: '/users/new',
     },
   ]
 
@@ -252,14 +249,6 @@ const Dashboard = () => {
             </Typography>
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Active Doctors
-              </Typography>
-              <Typography variant="h5" fontWeight={600}>
-                {doctors.length}
-              </Typography>
-            </Box>
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" color="text.secondary">
                 Registered Patients
               </Typography>
               <Typography variant="h5" fontWeight={600}>
@@ -272,6 +261,14 @@ const Dashboard = () => {
               </Typography>
               <Typography variant="h5" fontWeight={600}>
                 {appointments.length}
+              </Typography>
+            </Box>
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="body2" color="text.secondary">
+                Insurance Plans
+              </Typography>
+              <Typography variant="h5" fontWeight={600}>
+                {insurances.length}
               </Typography>
             </Box>
           </Paper>

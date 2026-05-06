@@ -21,8 +21,12 @@ import { format } from 'date-fns'
 const AppointmentUpdateForm = () => {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { patients, doctors, fetchPatients, fetchDoctors, appointments, updateAppointment } =
+  const { patients, doctors, fetchPatients, fetchDoctors, appointments, updateAppointment, user } =
     useApp()
+
+  // Get user role
+  const userRole = user?.role || 'EMPLOYEE'
+  const isDoctor = userRole === 'DOCTOR'
 
   const [formData, setFormData] = useState({
     patientId: '',
@@ -100,14 +104,17 @@ const AppointmentUpdateForm = () => {
   const validate = () => {
     const newErrors = {}
 
-    if (!formData.patientId) {
-      newErrors.patientId = 'Patient is required'
-    }
-    if (!formData.doctorId) {
-      newErrors.doctorId = 'Doctor is required'
-    }
-    if (!formData.appointmentdatetime) {
-      newErrors.appointmentdatetime = 'Appointment date and time is required'
+    // For doctors, only status is editable, so only validate status is present (which it always is)
+    if (!isDoctor) {
+      if (!formData.patientId) {
+        newErrors.patientId = 'Patient is required'
+      }
+      if (!formData.doctorId) {
+        newErrors.doctorId = 'Doctor is required'
+      }
+      if (!formData.appointmentdatetime) {
+        newErrors.appointmentdatetime = 'Appointment date and time is required'
+      }
     }
 
     setErrors(newErrors)
@@ -157,16 +164,39 @@ const AppointmentUpdateForm = () => {
       ) : (
         <Card>
           <CardContent>
+            {isDoctor && (
+              <Box
+                sx={{
+                  mb: 2,
+                  p: 2,
+                  bgcolor: 'info.lighter',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'info.main',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  As a doctor, you can only update the appointment status. Other fields are read-only.
+                </Typography>
+              </Box>
+            )}
+
             <form onSubmit={handleSubmit}>
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth error={!!errors.patientId} required>
+                  <FormControl
+                    fullWidth
+                    error={!!errors.patientId}
+                    required
+                    disabled={isDoctor}
+                  >
                     <InputLabel>Patient</InputLabel>
                     <Select
                       name="patientId"
                       value={formData.patientId}
                       onChange={handleChange}
                       label="Patient"
+                      disabled={isDoctor}
                     >
                       <MenuItem value="" disabled>
                         Select Patient
@@ -181,13 +211,19 @@ const AppointmentUpdateForm = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth error={!!errors.doctorId} required>
+                  <FormControl
+                    fullWidth
+                    error={!!errors.doctorId}
+                    required
+                    disabled={isDoctor}
+                  >
                     <InputLabel>Doctor</InputLabel>
                     <Select
                       name="doctorId"
                       value={formData.doctorId}
                       onChange={handleChange}
                       label="Doctor"
+                      disabled={isDoctor}
                     >
                       <MenuItem value="" disabled>
                         Select Doctor
@@ -213,6 +249,7 @@ const AppointmentUpdateForm = () => {
                     helperText={errors.appointmentdatetime}
                     InputLabelProps={{ shrink: true }}
                     required
+                    disabled={isDoctor}
                   />
                 </Grid>
 
@@ -242,7 +279,7 @@ const AppointmentUpdateForm = () => {
                       Cancel
                     </Button>
                     <Button type="submit" variant="contained">
-                      Update Appointment
+                      {isDoctor ? 'Update Status' : 'Update Appointment'}
                     </Button>
                   </Box>
                 </Grid>

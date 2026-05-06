@@ -54,4 +54,10 @@ export const appointmentService = {
     }
     throw new Error(response.data?.message || 'Delete failed')
   },
+
+  getByDoctor: async (id) => {
+    const response = await api.get(`/appointment/get-appointment-by-doctor/${id}`)
+    const data = extractData(response)
+    return convertAppointmentKeys(data)
+  }
 }
