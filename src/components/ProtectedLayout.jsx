@@ -6,17 +6,20 @@ import Snackbar from './Snackbar'
 
 // Route configuration with role restrictions
 const routeConfig = {
-  '/dashboard': ['ADMIN', 'EMPLOYEE'],
-  '/patients': ['ADMIN', 'EMPLOYEE'],
-  '/patients/new': ['ADMIN', 'EMPLOYEE'],
+  '/dashboard': ['ADMIN', 'EMPLOYEE', 'DOCTOR'],
+  '/patients': ['ADMIN', 'EMPLOYEE', 'DOCTOR'],
+  '/patients/new': ['ADMIN', 'EMPLOYEE'], // No DOCTOR
+  '/patients/:id/edit': ['ADMIN', 'EMPLOYEE'], // No DOCTOR
   '/doctors': ['ADMIN'],
   '/doctors/new': ['ADMIN'],
-  '/appointments': ['ADMIN', 'EMPLOYEE'],
-  '/appointments/new': ['ADMIN', 'EMPLOYEE'],
+  '/appointments': ['ADMIN', 'EMPLOYEE', 'DOCTOR'],
+  '/appointments/new': ['ADMIN', 'EMPLOYEE'], // No DOCTOR
+  '/appointments/:id/edit': ['ADMIN', 'EMPLOYEE'], // No DOCTOR
   '/insurance': ['ADMIN'],
   '/insurance/new': ['ADMIN'],
   '/users': ['ADMIN'],
   '/users/new': ['ADMIN'],
+  '/consultation-remarks': ['ADMIN', 'DOCTOR'],
 }
 
 const ProtectedLayout = () => {
@@ -46,6 +49,19 @@ const ProtectedLayout = () => {
     if (currentPath === route || currentPath.startsWith(route + '/')) {
       allowedRoles = roles
       break
+    }
+  }
+
+  // Additional check for edit routes with dynamic segments
+  if (!allowedRoles.length) {
+    // Check if it's an edit route (e.g., /patients/123/edit)
+    const editMatch = currentPath.match(/^\/(patients|appointments)\/\d+\/edit$/)
+    if (editMatch) {
+      const resource = editMatch[1]
+      const editRouteKey = `/${resource}/:id/edit`
+      if (routeConfig[editRouteKey]) {
+        allowedRoles = routeConfig[editRouteKey]
+      }
     }
   }
 

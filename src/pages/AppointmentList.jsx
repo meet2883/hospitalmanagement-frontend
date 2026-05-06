@@ -35,9 +35,13 @@ import { format } from 'date-fns'
 
 const AppointmentList = () => {
   const navigate = useNavigate()
-  const { appointments, fetchAppointments, deleteAppointment, loading } = useApp()
+  const { appointments, fetchAppointments, deleteAppointment, loading, user } = useApp()
   const [deleteDialog, setDeleteDialog] = useState({ open: false, appointment: null })
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Get user role
+  const userRole = user?.role || 'EMPLOYEE'
+  const canModify = userRole === 'ADMIN' // Only ADMIN can create, update, delete
 
   // Pagination state
   const [page, setPage] = useState(0)
@@ -52,7 +56,7 @@ const AppointmentList = () => {
   }, [fetchAppointments])
 
   // Filter appointments based on search term
-  const filteredAppointments = appointments.filter((appointment) => {
+  const filteredAppointments = (appointments || []).filter((appointment) => {
     const searchLower = searchTerm.toLowerCase()
     return (
       appointment.patient_name?.toLowerCase().includes(searchLower) ||
@@ -168,7 +172,7 @@ const AppointmentList = () => {
     { id: 'patient_name', label: 'Patient' },
     { id: 'doctor_name', label: 'Doctor' },
     { id: 'status', label: 'Status' },
-    { id: 'actions', label: 'Actions', sortable: false },
+    ...(canModify ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
   ]
 
   return (
@@ -186,16 +190,18 @@ const AppointmentList = () => {
             Appointments
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage appointments ({filteredAppointments.length} total)
+            {canModify ? 'Manage' : 'View'} appointments ({filteredAppointments.length} total)
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/appointments/new')}
-        >
-          Schedule Appointment
-        </Button>
+        {canModify && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/appointments/new')}
+          >
+            Schedule Appointment
+          </Button>
+        )}
       </Box>
 
       <Card>
@@ -248,13 +254,13 @@ const AppointmentList = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell colSpan={canModify ? 5 : 4} align="center">
                       <Typography>Loading...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : sortedAppointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell colSpan={canModify ? 5 : 4} align="center">
                       <Typography color="text.secondary">
                         No appointments found
                       </Typography>
@@ -286,20 +292,22 @@ const AppointmentList = () => {
                           size="small"
                         />
                       </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          color="primary"
-                          onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => openDeleteDialog(appointment)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
+                      {canModify && (
+                        <TableCell align="center">
+                          <IconButton
+                            color="primary"
+                            onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            color="error"
+                            onClick={() => openDeleteDialog(appointment)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}

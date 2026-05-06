@@ -33,9 +33,13 @@ import { useApp } from '../contexts/AppContext'
 
 const PatientList = () => {
   const navigate = useNavigate()
-  const { patients, fetchPatients, deletePatient, loading } = useApp()
+  const { patients, fetchPatients, deletePatient, loading, user } = useApp()
   const [searchTerm, setSearchTerm] = useState('')
   const [deleteDialog, setDeleteDialog] = useState({ open: false, patient: null })
+
+  // Get user role
+  const userRole = user?.role || 'EMPLOYEE'
+  const canModify = userRole === 'ADMIN' // Only ADMIN can create, update, delete
 
   // Pagination state
   const [page, setPage] = useState(0)
@@ -50,7 +54,7 @@ const PatientList = () => {
   }, [fetchPatients])
 
   // Filter patients based on search term
-  const filteredPatients = patients.filter((patient) =>
+  const filteredPatients = (patients || []).filter((patient) =>
     patient.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.phoneNumber?.includes(searchTerm) ||
     patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -125,7 +129,7 @@ const PatientList = () => {
     { id: 'phoneNumber', label: 'Phone' },
     { id: 'bloodGroup', label: 'Blood Group' },
     { id: 'insurance', label: 'Insurance', sortable: false },
-    { id: 'actions', label: 'Actions', sortable: false },
+    ...(canModify ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
   ]
 
   return (
@@ -143,16 +147,18 @@ const PatientList = () => {
             Patients
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage patient records ({filteredPatients.length} total)
+            {canModify ? 'Manage' : 'View'} patient records ({filteredPatients.length} total)
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/patients/new')}
-        >
-          Add Patient
-        </Button>
+        {canModify && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/patients/new')}
+          >
+            Add Patient
+          </Button>
+        )}
       </Box>
 
       <Card>
@@ -207,13 +213,13 @@ const PatientList = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={canModify ? 7 : 6} align="center">
                       <Typography>Loading...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : sortedPatients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={canModify ? 7 : 6} align="center">
                       <Typography color="text.secondary">
                         No patients found
                       </Typography>
@@ -244,20 +250,22 @@ const PatientList = () => {
                       <TableCell>
                         {patient.insurance?.policyName || 'None'}
                       </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          color="primary"
-                          onClick={() => navigate(`/patients/${patient.id}/edit`)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => openDeleteDialog(patient)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
+                      {canModify && (
+                        <TableCell align="center">
+                          <IconButton
+                            color="primary"
+                            onClick={() => navigate(`/patients/${patient.id}/edit`)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            color="error"
+                            onClick={() => openDeleteDialog(patient)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}

@@ -34,6 +34,7 @@ const handleAuthError = (error) => {
 export const authService = {
   // Sign in with username and password
   signIn: async (username, password) => {
+    // debugger;
     try {
       const response = await api.post('/auth/sign-in', { email: username, password })
 
@@ -66,16 +67,23 @@ export const authService = {
       // Extract user data from response body
       const data = extractData(response)
 
-      // User data structure: { role: "[ROLE_ADMIN]", name: "Meet Panchal" }
+      // User data structure: { role: "ADMIN", name: "Meet Panchal" }
       const userData = data.user || data.data || data
 
-      // Parse role to extract clean role name (e.g., "[ROLE_ADMIN]" -> "ROLE_ADMIN" -> "ADMIN")
-      let cleanRole = 'EMPLOYEE' // default
+      // Parse role to extract clean role name
+      // Handle formats: "[ROLE_ADMIN]", "ROLE_ADMIN", or "ADMIN"
+      let cleanRole = 'EMPLOYEE'; // default fallback
       if (userData.role) {
-        // Handle both "[ROLE_ADMIN]" and "ROLE_ADMIN" formats
+        // First, try to match ROLE_XXX format
         const roleMatch = userData.role.match(/ROLE_(\w+)/)
         if (roleMatch) {
           cleanRole = roleMatch[1]
+        } else if (userData.role === 'ADMIN' || userData.role === 'DOCTOR' || userData.role === 'EMPLOYEE') {
+          // Direct role name without prefix
+          cleanRole = userData.role
+        } else {
+          // Fallback: use the role as-is
+          cleanRole = userData.role
         }
       }
       userData.role = cleanRole

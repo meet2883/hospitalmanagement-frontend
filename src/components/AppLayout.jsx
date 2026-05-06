@@ -27,6 +27,7 @@ import {
   Logout as LogoutIcon,
   Person as PersonIcon,
   PersonAdd as PersonAddIcon,
+  Notes as NotesIcon,
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
@@ -36,12 +37,13 @@ const drawerWidth = 240
 // Role-based navigation configuration
 const getNavigationItems = (role) => {
   const allItems = [
-    { text: 'Dashboard', path: '/dashboard', icon: <DashboardIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
-    { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
+    { text: 'Dashboard', path: '/dashboard', icon: <DashboardIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
+    { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Doctors', path: '/doctors', icon: <DoctorIcon />, roles: ['ADMIN'] },
-    { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE'] },
+    { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon />, roles: ['ADMIN'] },
     { text: 'Create User', path: '/users/new', icon: <PersonAddIcon />, roles: ['ADMIN'] },
+    { text: 'Consultation Remarks', path: '/consultation-remarks', icon: <NotesIcon />, roles: ['ADMIN', 'DOCTOR'] },
   ]
 
   return allItems.filter(item => item.roles.includes(role))

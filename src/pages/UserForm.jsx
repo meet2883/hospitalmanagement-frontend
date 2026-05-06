@@ -186,10 +186,11 @@ const UserForm = () => {
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
-                  label="Role"
+                  label="Role" 
                 >
                   <MenuItem value="ADMIN">Admin</MenuItem>
                   <MenuItem value="EMPLOYEE">Employee</MenuItem>
+                  <MenuItem value="DOCTOR">Doctor</MenuItem>
                 </Select>
               </FormControl>
 
