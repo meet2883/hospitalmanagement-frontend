@@ -4,6 +4,7 @@ import { doctorService } from '../services/doctorService'
 import { appointmentService } from '../services/appointmentService'
 import { insuranceService } from '../services/insuranceService'
 import { authService } from '../services/authService'
+import { consultationRemarksService } from '../services/consultationRemarkService'
 
 const AppContext = createContext()
 
@@ -340,6 +341,20 @@ export const AppProvider = ({ children }) => {
     showNotification('Signed out successfully')
   }
 
+  const createConsultationReport = async (data) => {
+    setLoading(true)
+    try {
+      const response = await consultationRemarksService.addConsultationReport(data)
+      return response
+    } catch (err) {
+      setError(err.message)
+      showNotification(err.message || 'report creation failed', 'error')
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value = {
     patients,
     doctors,
@@ -370,7 +385,8 @@ export const AppProvider = ({ children }) => {
     showNotification,
     closeNotification,
     fetchAppointmentsByDoctorId,
-    fetchAppointments
+    fetchAppointments,
+    createConsultationReport
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

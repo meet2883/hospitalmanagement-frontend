@@ -33,8 +33,8 @@ import { userService } from '../services/userService'
 
 const SPECIALIZATIONS = [
   'CARDIOLOGIST',
-  'PHYSICIAN',
-  'PSYCHOLOGIST',
+  'PHISHIYO',
+  'PHYCHOLOGIST',
 ]
 
 const UserForm = () => {

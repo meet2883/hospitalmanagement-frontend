@@ -1,7 +1,7 @@
 import api from '../utils/api'
 
 // Helper function to extract data from ApiResponse
-const extractData = (response) => {
+export const extractData = (response) => {
   if (response.data?.success) {
     return response.data.data
   }
