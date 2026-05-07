@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box,
   Button,
@@ -21,25 +21,48 @@ import {
   Chip,
   TablePagination,
   TableSortLabel,
+  Grid,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
+  Clear as ClearIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
+import { debounce } from 'lodash'
 
 const PatientList = () => {
   const navigate = useNavigate()
   const { patients, fetchPatients, deletePatient, loading, user } = useApp()
-  const [searchTerm, setSearchTerm] = useState('')
   const [deleteDialog, setDeleteDialog] = useState({ open: false, patient: null })
 
   // Get user role
   const userRole = user?.role || 'EMPLOYEE'
   const canModify = userRole === 'ADMIN' // Only ADMIN can create, update, delete
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    name: '',
+    phoneNumber: '',
+    gender: '',
+    bloodgroup: '',
+  })
+
+  // Ref to track latest filters for debounce
+  const filtersRef = useRef(filters)
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   // Pagination state
   const [page, setPage] = useState(0)
@@ -53,12 +76,75 @@ const PatientList = () => {
     fetchPatients()
   }, [fetchPatients])
 
-  // Filter patients based on search term
-  const filteredPatients = (patients || []).filter((patient) =>
-    patient.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phoneNumber?.includes(searchTerm) ||
-    patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Check if any filter is active
+  const hasActiveFilters =
+    filters.name ||
+    filters.phoneNumber ||
+    filters.gender ||
+    filters.bloodgroup
+
+  // Debounced fetch for text inputs - directly calls fetchPatients
+  const debouncedFetch = useCallback(
+    debounce(() => {
+      const apiFilters = {}
+      const currentFilters = filtersRef.current
+
+      if (currentFilters.name) {
+        apiFilters.name = currentFilters.name
+      }
+      if (currentFilters.phoneNumber) {
+        apiFilters.phoneNumber = currentFilters.phoneNumber
+      }
+      if (currentFilters.gender) {
+        apiFilters.gender = currentFilters.gender
+      }
+      if (currentFilters.bloodgroup) {
+        apiFilters.bloodgroup = currentFilters.bloodgroup
+      }
+
+      setPage(0)
+      fetchPatients(apiFilters)
+    }, 500),
+    [fetchPatients]
   )
+
+  // Apply filters for dropdowns (immediate)
+  const applyFilters = async (updatedFilters = {}) => {
+    const apiFilters = {}
+    const mergedFilters = { ...filters, ...updatedFilters }
+
+    if (mergedFilters.name) {
+      apiFilters.name = mergedFilters.name
+    }
+    if (mergedFilters.phoneNumber) {
+      apiFilters.phoneNumber = mergedFilters.phoneNumber
+    }
+    if (mergedFilters.gender) {
+      apiFilters.gender = mergedFilters.gender
+    }
+    if (mergedFilters.bloodgroup) {
+      apiFilters.bloodgroup = mergedFilters.bloodgroup
+    }
+
+    setPage(0)
+    await fetchPatients(apiFilters)
+  }
+
+  // Helper function to clear all filters
+  const clearFilters = async () => {
+    const emptyFilters = {
+      name: '',
+      phoneNumber: '',
+      gender: '',
+      bloodgroup: '',
+    }
+    setFilters(emptyFilters)
+    await fetchPatients({})
+    setPage(0)
+  }
+
+  // Use patients directly since API handles filtering
+  const filteredPatients = patients || []
 
   // Sort patients
   const sortedPatients = React.useMemo(() => {
@@ -132,6 +218,13 @@ const PatientList = () => {
     ...(canModify ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
   ]
 
+  const activeFilterCount = [
+    filters.name,
+    filters.phoneNumber,
+    filters.gender,
+    filters.bloodgroup,
+  ].filter(Boolean).length
+
   return (
     <Box>
       <Box
@@ -163,27 +256,140 @@ const PatientList = () => {
 
       <Card>
         <CardContent>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 3,
-              gap: 2,
-            }}
-          >
-            <SearchIcon color="action" />
-            <TextField
-              placeholder="Search patients..."
-              variant="outlined"
-              size="small"
-              fullWidth
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setPage(0)
+          {/* Advanced Filters Section */}
+          <Box sx={{ mb: 3 }}>
+            {/* Filter Header with Toggle */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
               }}
-            />
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <FilterListIcon color="primary" />
+                <Typography variant="h6" fontWeight={600}>
+                  Advanced Filters
+                </Typography>
+                {activeFilterCount > 0 && (
+                  <Chip
+                    label={`${activeFilterCount} active`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontSize: '0.75rem', ml: 1 }}
+                  />
+                )}
+              </Box>
+              {hasActiveFilters && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ClearIcon />}
+                  onClick={clearFilters}
+                  color="secondary"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </Box>
+
+            {/* Filters Grid - All in one row */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  label="Patient Name"
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  value={filters.name}
+                  onChange={(e) => {
+                    setFilters(prev => ({ ...prev, name: e.target.value }))
+                    debouncedFetch()
+                  }}
+                  placeholder="Search by name..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  label="Phone Number"
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  value={filters.phoneNumber}
+                  onChange={(e) => {
+                    setFilters(prev => ({ ...prev, phoneNumber: e.target.value }))
+                    debouncedFetch()
+                  }}
+                  placeholder="Search by phone..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Gender</InputLabel>
+                  <Select
+                    label="Gender"
+                    value={filters.gender}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFilters({ ...filters, gender: value })
+                      applyFilters({ gender: value })
+                    }}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="Male">Male</MenuItem>
+                    <MenuItem value="Female">Female</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Blood Group</InputLabel>
+                  <Select
+                    label="Blood Group"
+                    value={filters.bloodgroup}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFilters({ ...filters, bloodgroup: value })
+                      applyFilters({ bloodgroup: value })
+                    }}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="A+">A+</MenuItem>
+                    <MenuItem value="A-">A-</MenuItem>
+                    <MenuItem value="B+">B+</MenuItem>
+                    <MenuItem value="B-">B-</MenuItem>
+                    <MenuItem value="AB+">AB+</MenuItem>
+                    <MenuItem value="AB-">AB-</MenuItem>
+                    <MenuItem value="O+">O+</MenuItem>
+                    <MenuItem value="O-">O-</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            {/* Active Filters Summary */}
+            {hasActiveFilters && (
+              <Alert
+                severity="success"
+                sx={{
+                  mt: 2.5,
+                  borderRadius: 1.5,
+                  '& .MuiAlert-message': {
+                    py: 0.5,
+                  },
+                }}
+              >
+                <Typography variant="body2">
+                  Found <strong>{filteredPatients.length}</strong> patient{filteredPatients.length !== 1 ? 's' : ''} matching your criteria
+                </Typography>
+              </Alert>
+            )}
           </Box>
+
+          <Divider sx={{ mb: 2 }} />
 
           <TableContainer component={Paper} elevation={0}>
             <Table>

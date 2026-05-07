@@ -41,4 +41,26 @@ export const patientService = {
     }
     throw new Error(response.data?.message || 'Delete failed')
   },
+
+  filterPatients: async (filters) => {
+    console.log('filterPatients method call in patientService >>>>', filters)
+    let filter = {};
+
+    if (filters && filters.name) {
+      filter['name'] = filters.name
+    }
+    if (filters && filters.phoneNumber) {
+      filter['phoneNumber'] = filters.phoneNumber
+    }
+    if (filters && filters.gender) {
+      filter['gender'] = filters.gender
+    }
+    if (filters && filters.bloodgroup) {
+      filter['bloodgroup'] = filters.bloodgroup
+    }
+
+    const response = await api.get(`/patient/filter`, { params: filter })
+    const data = extractData(response)
+    return data;
+  }
 }

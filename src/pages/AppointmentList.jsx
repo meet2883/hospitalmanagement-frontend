@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box,
   Button,
@@ -39,6 +39,7 @@ import { useApp } from '../contexts/AppContext'
 import { format, parseISO } from 'date-fns'
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { debounce } from 'lodash'
 
 const AppointmentList = () => {
   const navigate = useNavigate()
@@ -58,6 +59,12 @@ const AppointmentList = () => {
     patientName: '',
     doctorName: '',
   })
+
+  // Ref to track latest filters for debounce
+  const filtersRef = useRef(filters)
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   // Pagination state
   const [page, setPage] = useState(0)
@@ -115,6 +122,31 @@ const AppointmentList = () => {
 
     await fetchAppointments(apiFilters)
   }
+
+  // Debounced fetch for text inputs - directly calls fetchAppointments
+  const debouncedFetch = useCallback(
+    debounce(() => {
+      const apiFilters = {}
+      const currentFilters = filtersRef.current
+
+      if (currentFilters.date) {
+        const formattedDate = `${currentFilters.date.getFullYear()}/${(currentFilters.date.getMonth() + 1).toString().padStart(2, '0')}/${currentFilters.date.getDate().toString().padStart(2, '0')}`
+        apiFilters.date = formattedDate
+      }
+      if (currentFilters.status) {
+        apiFilters.status = currentFilters.status
+      }
+      if (currentFilters.patientName) {
+        apiFilters.patientName = currentFilters.patientName
+      }
+      if (currentFilters.doctorName) {
+        apiFilters.doctorName = currentFilters.doctorName
+      }
+
+      fetchAppointments(apiFilters)
+    }, 500),
+    [fetchAppointments]
+  )
 
   // Clear all filters
   const clearFilters = async () => {
@@ -356,7 +388,8 @@ const AppointmentList = () => {
                   fullWidth
                   value={filters.patientName}
                   onChange={(e) => {
-                    applyFilters({ ...filters, patientName: e.target.value })
+                    setFilters(prev => ({ ...prev, patientName: e.target.value }))
+                    debouncedFetch()
                   }}
                   placeholder="Search patient..."
                 />
@@ -370,7 +403,8 @@ const AppointmentList = () => {
                   fullWidth
                   value={filters.doctorName}
                   onChange={(e) => {
-                    applyFilters({ ...filters, doctorName: e.target.value })
+                    setFilters(prev => ({ ...prev, doctorName: e.target.value }))
+                    debouncedFetch()
                   }}
                   placeholder="Search doctor..."
                 />

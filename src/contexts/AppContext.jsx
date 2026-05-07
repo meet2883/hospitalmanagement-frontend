@@ -47,11 +47,11 @@ export const AppProvider = ({ children }) => {
   }, [])
 
   // Patient operations
-  const fetchPatients = useCallback(async () => {
+  const fetchPatients = useCallback(async (filters = {}) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await patientService.getAllPatients()
+      const data = await patientService.filterPatients(filters)
       setPatients(data)
     } catch (err) {
       setError(err.message)
