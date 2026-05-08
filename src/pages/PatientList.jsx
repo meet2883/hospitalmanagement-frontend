@@ -48,7 +48,7 @@ const PatientList = () => {
 
   // Get user role
   const userRole = user?.role || 'EMPLOYEE'
-  const canModify = userRole === 'ADMIN' // Only ADMIN can create, update, delete
+  const canModify = userRole === 'ADMIN' || 'EMPLOYEE' // Only ADMIN can create, update, delete
 
   // Filter states
   const [filters, setFilters] = useState({

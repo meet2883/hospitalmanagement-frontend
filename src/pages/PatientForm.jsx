@@ -11,6 +11,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  FormHelperText,
 } from '@mui/material'
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -74,21 +75,43 @@ const PatientForm = () => {
   const validate = () => {
     const newErrors = {}
 
+    // Patient Name validation
     if (!formData.patientName.trim()) {
       newErrors.patientName = 'Patient name is required'
     }
+
+    // Gender validation
     if (!formData.gender) {
       newErrors.gender = 'Gender is required'
     }
+
+    // Phone Number validation - exactly 10 digits
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required'
     } else if (!/^\d{10}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid 10-digit phone number'
+      newErrors.phoneNumber = 'Phone number must be exactly 10 digits'
     }
+
+    // Age validation - between 1 and 100
     if (!formData.age) {
       newErrors.age = 'Age is required'
-    } else if (formData.age < 0 || formData.age > 150) {
-      newErrors.age = 'Please enter a valid age'
+    } else if (formData.age < 1 || formData.age > 100) {
+      newErrors.age = 'Age must be between 1 and 100'
+    }
+
+    // Blood Group validation
+    if (!formData.bloodGroup) {
+      newErrors.bloodGroup = 'Blood group is required'
+    }
+
+    // Date of Birth validation
+    if (!formData.dateOfBirth) {
+      newErrors.dateOfBirth = 'Date of birth is required'
+    }
+
+    // Address validation
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required'
     }
 
     setErrors(newErrors)
@@ -142,7 +165,7 @@ const PatientForm = () => {
 
       <Card>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -170,6 +193,7 @@ const PatientForm = () => {
                     <MenuItem value="Female">Female</MenuItem>
                     <MenuItem value="Other">Other</MenuItem>
                   </Select>
+                  {errors.gender && <FormHelperText>{errors.gender}</FormHelperText>}
                 </FormControl>
               </Grid>
 
@@ -196,13 +220,13 @@ const PatientForm = () => {
                   onChange={handleChange}
                   error={!!errors.age}
                   helperText={errors.age}
-                  inputProps={{ min: 0, max: 150 }}
+                  inputProps={{ min: 1, max: 100 }}
                   required
                 />
               </Grid>
 
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
+                <FormControl fullWidth error={!!errors.bloodGroup} required>
                   <InputLabel>Blood Group</InputLabel>
                   <Select
                     name="bloodGroup"
@@ -220,6 +244,7 @@ const PatientForm = () => {
                     <MenuItem value="O+">O+</MenuItem>
                     <MenuItem value="O-">O-</MenuItem>
                   </Select>
+                  {errors.bloodGroup && <FormHelperText>{errors.bloodGroup}</FormHelperText>}
                 </FormControl>
               </Grid>
 
@@ -231,7 +256,10 @@ const PatientForm = () => {
                   fullWidth
                   value={formData.dateOfBirth}
                   onChange={handleChange}
+                  error={!!errors.dateOfBirth}
+                  helperText={errors.dateOfBirth}
                   InputLabelProps={{ shrink: true }}
+                  required
                 />
               </Grid>
 
@@ -244,6 +272,9 @@ const PatientForm = () => {
                   rows={2}
                   value={formData.address}
                   onChange={handleChange}
+                  error={!!errors.address}
+                  helperText={errors.address}
+                  required
                 />
               </Grid>
 
