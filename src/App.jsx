@@ -33,6 +33,7 @@ function App() {
           <Route path="/insurance/:id/edit" element={<InsuranceForm />} />
           <Route path="/users/new" element={<UserForm />} />
           <Route path="/consultation-remarks" element={<ConsultationRemarks />} />
+          <Route path="/consultation/:appointmentId" element={<ConsultationRemarks />} />
         </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>

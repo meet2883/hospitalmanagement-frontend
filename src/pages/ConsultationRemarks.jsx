@@ -14,30 +14,45 @@ import {
   Grid,
   Paper,
   Autocomplete,
-  createFilterOptions
+  createFilterOptions,
+  Chip
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   Notes as NotesIcon,
+  Event as EventIcon,
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { patientService } from '../services/patientService'
 import { doctorService } from '../services/doctorService'
+import { appointmentService } from '../services/appointmentService'
+import { consultationRemarksService } from '../services/consultationRemarkService'
+import { get } from 'lodash'
 
 const ConsultationRemarks = () => {
   const navigate = useNavigate()
-  const { showNotification, createConsultationReport } = useApp()
+  const { appointmentId } = useParams()
+  const { showNotification, createConsultationReport, user } = useApp()
 
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [loading, setLoading] = useState(true)
+  const [appointment, setAppointment] = useState(null)
+  const [isAppointmentMode, setIsAppointmentMode] = useState(false)
+  const [isFollowUp, setIsFollowUp] = useState(false)
+  const [existingMedicalRecord, setExistingMedicalRecord] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [medicalRecordId, setMedicalRecordId] = useState(null)
+  const [consultationMode, setConsultationMode] = useState('create') // 'create' or 'edit'
 
   const [formData, setFormData] = useState({
-    patient: {},
-    doctor: {},
+    patient: null,
+    doctor: null,
+    patientId: '',
+    doctorId: '',
     remarks: '',
     keypoints: '',
     diagnosis: '',
@@ -49,7 +64,7 @@ const ConsultationRemarks = () => {
 
   const [errors, setErrors] = useState({})
 
-  // Fetch patients and doctors on component mount
+  // Fetch patients, doctors, and appointment (if appointmentId exists) on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -59,6 +74,99 @@ const ConsultationRemarks = () => {
         ])
         setPatients(patientsData)
         setDoctors(doctorsData)
+
+        // If appointmentId exists, fetch appointment details and pre-fill form
+        if (appointmentId) {
+          setIsAppointmentMode(true)
+
+          // Fetch appointment details for display (date, type, status, etc.)
+          const appointmentData = await appointmentService.getAppointmentById(appointmentId)
+          setAppointment(appointmentData)
+
+          // Also fetch medical record - this might return null if no consultation exists yet
+          let medicalRecord = null
+          try {
+            medicalRecord = await consultationRemarksService.getReportByAppointmentId(appointmentId)
+          } catch (error) {
+            showNotification('No medical record found yet for this appointment', 'error')
+          }
+
+          // Check appointment status and determine consultation mode
+          const isAppointmentDone = appointmentData.status === 'DONE' || appointmentData.status === 1
+
+          // Pre-fill patient and doctor - find actual objects from arrays
+          const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+          const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
+
+          if (isAppointmentDone && medicalRecord && medicalRecord.id) {
+            // DONE status with existing medical record - edit mode
+            setConsultationMode('edit')
+            setIsEditMode(true)
+            setExistingMedicalRecord(medicalRecord)
+            setMedicalRecordId(medicalRecord.id)
+
+            setFormData(prev => ({
+              ...prev,
+              patient: selectedPatient || null,
+              doctor: selectedDoctor || null,
+              patientId: appointmentData.patientId || '',
+              doctorId: appointmentData.doctorId || '',
+              remarks: medicalRecord.remarks || medicalRecord.remark || '',
+              keypoints: medicalRecord.keyPoints || medicalRecord.keypoint || '',
+              diagnosis: medicalRecord.diagnosis || '',
+            }))
+
+            // Pre-fill prescriptions if they exist
+            if (medicalRecord.prescriptions && medicalRecord.prescriptions.length > 0) {
+              const mappedPrescriptions = medicalRecord.prescriptions.map(presc => ({
+                medicineName: presc.medicineName || presc.medicinename || presc.medicine_name || '',
+                dosage: presc.dosage || '',
+                frequency: normalizeFrequency(presc.frequency || ''),
+                duration: presc.duration || '',
+                instructions: presc.instructions || '',
+                status: normalizeStatus(presc.status),
+                notes: presc.notes || presc.note || ''
+              }))
+              setPrescriptions(mappedPrescriptions)
+            }
+          } else if (isAppointmentDone && !medicalRecord) {
+            // DONE status but no medical record - data integrity issue
+            showNotification('No consultation record found for completed appointment. Creating new record.', 'warning')
+            setConsultationMode('create')
+            setIsEditMode(false)
+
+            const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+            const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
+
+            setFormData(prev => ({
+              ...prev,
+              patient: selectedPatient || null,
+              doctor: selectedDoctor || null,
+              patientId: appointmentData.patientId || '',
+              doctorId: appointmentData.doctorId || '',
+            }))
+          } else {
+            // SCHEDULE status - create new consultation
+            setConsultationMode('create')
+            setIsEditMode(false)
+
+            const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+            const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
+
+            setFormData(prev => ({
+              ...prev,
+              patient: selectedPatient || null,
+              doctor: selectedDoctor || null,
+              patientId: appointmentData.patientId || '',
+              doctorId: appointmentData.doctorId || '',
+            }))
+          }
+
+          // Check if this is a follow-up appointment type
+          if (appointmentData.type === 'FOLLOW_UP') {
+            setIsFollowUp(true)
+          }
+        }
       } catch (error) {
         showNotification('Failed to load data', 'error')
       } finally {
@@ -67,7 +175,7 @@ const ConsultationRemarks = () => {
     }
 
     fetchData()
-  }, [showNotification])
+  }, [appointmentId, showNotification])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -94,6 +202,117 @@ const ConsultationRemarks = () => {
     } else {
       showNotification('At least one prescription is required', 'warning')
     }
+  }
+
+  // Helper function to map various frequency formats to standard format
+  const normalizeFrequency = (frequency) => {
+    if (!frequency) return ''
+
+    const frequencyMapping = {
+      // Various formats of "Once daily"
+      'once_daily': 'Once daily',
+      'ONCE_DAILY': 'Once daily',
+      'Once-Daily': 'Once daily',
+      'once-daily': 'Once daily',
+      'Once Daily': 'Once daily',
+
+      // Various formats of "Twice daily"
+      'twice_daily': 'Twice daily',
+      'TWICE_DAILY': 'Twice daily',
+      'Twice-Daily': 'Twice daily',
+      'twice-daily': 'Twice daily',
+      'Twice Daily': 'Twice daily',
+
+      // Various formats of "Three times daily"
+      'three_times_daily': 'Three times daily',
+      'THREE_TIMES_DAILY': 'Three times daily',
+      'Three-Times-Daily': 'Three times daily',
+      'three-times-daily': 'Three times daily',
+      'Three Times Daily': 'Three times daily',
+
+      // Various formats of "Four times daily"
+      'four_times_daily': 'Four times daily',
+      'FOUR_TIMES_DAILY': 'Four times daily',
+      'Four-Times-Daily': 'Four times daily',
+      'four-times-daily': 'Four times daily',
+      'Four Times Daily': 'Four times daily',
+
+      // Various formats of "Every X hours"
+      'every_4_hours': 'Every 4 hours',
+      'EVERY_4_HOURS': 'Every 4 hours',
+      'Every-4-Hours': 'Every 4 hours',
+      'every-4-hours': 'Every 4 hours',
+      'Every 4 Hours': 'Every 4 hours',
+
+      'every_6_hours': 'Every 6 hours',
+      'EVERY_6_HOURS': 'Every 6 hours',
+      'Every-6-Hours': 'Every 6 hours',
+      'every-6-hours': 'Every 6 hours',
+      'Every 6 Hours': 'Every 6 hours',
+
+      'every_8_hours': 'Every 8 hours',
+      'EVERY_8_HOURS': 'Every 8 hours',
+      'Every-8-Hours': 'Every 8 hours',
+      'every-8-hours': 'Every 8 hours',
+      'Every 8 Hours': 'Every 8 hours',
+
+      'every_12_hours': 'Every 12 hours',
+      'EVERY_12_HOURS': 'Every 12 hours',
+      'Every-12-Hours': 'Every 12 hours',
+      'every-12-hours': 'Every 12 hours',
+      'Every 12 Hours': 'Every 12 hours',
+
+      // Various formats of "As needed"
+      'as_needed': 'As needed',
+      'AS_NEEDED': 'As needed',
+      'As-Needed': 'As needed',
+      'as-needed': 'As needed',
+      'As Needed': 'As needed',
+      'PRN': 'As needed',
+
+      // Various formats of "Before meals"
+      'before_meals': 'Before meals',
+      'BEFORE_MEALS': 'Before meals',
+      'Before-Meals': 'Before meals',
+      'before-meals': 'Before meals',
+      'Before Meals': 'Before meals',
+
+      // Various formats of "After meals"
+      'after_meals': 'After meals',
+      'AFTER_MEALS': 'After meals',
+      'After-Meals': 'After meals',
+      'after-meals': 'After meals',
+      'After Meals': 'After meals',
+
+      // Various formats of "At bedtime"
+      'at_bedtime': 'At bedtime',
+      'AT_BEDTIME': 'At bedtime',
+      'At-Bedtime': 'At bedtime',
+      'at-bedtime': 'At bedtime',
+      'At Bedtime': 'At bedtime',
+    }
+
+    // Return mapped value or original if not found
+    return frequencyMapping[frequency] || frequency
+  }
+
+  // Helper function to normalize status values
+  const normalizeStatus = (status) => {
+    if (!status) return 'ACTIVE'
+
+    const statusMapping = {
+      'active': 'ACTIVE',
+      'ACTIVE': 'ACTIVE',
+      'done': 'DONE',
+      'DONE': 'DONE',
+      'stopped': 'STOPPED',
+      'STOPPED': 'STOPPED',
+      0: 'ACTIVE',
+      1: 'DONE',
+      2: 'STOPPED',
+    }
+
+    return statusMapping[status] || status
   }
 
   // Handle prescription field changes
@@ -173,21 +392,46 @@ const ConsultationRemarks = () => {
       }))
     }
 
-    const response = await createConsultationReport(payload);
-    showNotification('Consultation remarks saved successfully', 'success')
+    // Show appropriate notification based on mode
+    if (consultationMode === 'edit') {
+      const response = await consultationRemarksService.updateReport(medicalRecordId, payload);
+      showNotification('Consultation remarks updated successfully', 'success')
+    } else {
+      const response = await createConsultationReport(payload);
+      showNotification('Consultation remarks saved successfully', 'success')
+    }
 
-    // TODO: Call API to save consultation remarks
-    // await consultationService.createConsultationRemarks(payload)
+    // If in appointment mode and creating new consultation, update appointment status to DONE
+    if (isAppointmentMode && appointmentId && consultationMode === 'create') {
+      try {
+        await appointmentService.updateAppointment(appointmentId, { status: 'DONE' })
+        showNotification('Appointment marked as completed', 'success')
+      } catch (error) {
+        showNotification('Failed to update appointment status', 'error')
+      }
+    }
 
     // Reset form after successful save
     setFormData({
-      patient: {},
-      doctor: {},
+      patient: null,
+      doctor: null,
+      patientId: '',
+      doctorId: '',
       remarks: '',
       keypoints: '',
       diagnosis: '',
     })
     setPrescriptions([{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '', status: 'ACTIVE', notes: '' }])
+    setMedicalRecordId(null)
+    setIsEditMode(false)
+    setIsFollowUp(false)
+    setExistingMedicalRecord(null)
+    setConsultationMode('create')
+
+    // Navigate back to appointments if in appointment mode
+    if (isAppointmentMode) {
+      navigate('/appointments')
+    }
   }
 
   const filterOptions = createFilterOptions({ matchFrom: 'any', stringify: (option) => option.name })
@@ -205,17 +449,72 @@ const ConsultationRemarks = () => {
       <Box sx={{ mb: 3 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/appointments')}
           sx={{ mb: 2 }}
         >
-          Back to Dashboard
+          Back to Appointment List
         </Button>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
-          Consultation Remarks
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Record consultation details and prescriptions
-        </Typography>
+        <Box>
+          <Typography variant="h4" fontWeight={600} gutterBottom>
+            {consultationMode === 'edit' ? 'View/Update Consultation Remarks' : 'Consultation Remarks'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {consultationMode === 'edit'
+              ? 'View and update consultation details and prescriptions for this completed appointment'
+              : 'Record consultation details and prescriptions for this appointment'}
+          </Typography>
+          {isAppointmentMode && appointment && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+              <EventIcon fontSize="small" color="primary" />
+              {appointment.appointmentdatetime && (
+                <Chip
+                  label={`Appointment: ${new Date(appointment.appointmentdatetime).toLocaleString()}`}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+              {appointment.type && (
+                <Chip
+                  label={`Type: ${appointment.type === 'FOLLOW_UP' ? 'Follow Up' : appointment.type === 'NEW_PATIENT' ? 'New Patient' : appointment.type === 'NEW_DIAGNOSIS' ? 'New Diagnosis' : 'Emergency'}`}
+                  size="small"
+                  color={appointment.type === 'FOLLOW_UP' ? 'success' : appointment.type === 'EMERGENCY' ? 'error' : 'info'}
+                  variant="outlined"
+                />
+              )}
+              {appointment.status && (
+                <Chip
+                  label={`Status: ${appointment.status === 'DONE' || appointment.status === 1 ? 'Completed' : appointment.status === 'CANCEL' || appointment.status === 2 ? 'Cancelled' : 'Scheduled'}`}
+                  size="small"
+                  color={appointment.status === 'DONE' || appointment.status === 1 ? 'success' : appointment.status === 'CANCEL' || appointment.status === 2 ? 'error' : 'info'}
+                  variant="outlined"
+                />
+              )}
+              {consultationMode === 'edit' && (
+                <Chip
+                  label="Viewing Existing Record"
+                  size="small"
+                  color="info"
+                  variant="filled"
+                  icon={<NotesIcon fontSize="small" />}
+                />
+              )}
+              {consultationMode === 'create' && (
+                <Chip
+                  label="Creating New Record"
+                  size="small"
+                  color="success"
+                  variant="filled"
+                />
+              )}
+              {appointment.patientName && (
+                <Typography variant="caption" color="text.secondary">
+                  Patient: <strong>{appointment.patientName}</strong>
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
 
       <Card>
@@ -225,13 +524,21 @@ const ConsultationRemarks = () => {
               {/* Patient Selection */}
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.patient} required>
-                  <Autocomplete 
+                  <Autocomplete
                     disablePortal
+                    disabled={isAppointmentMode}
                     options={patients}
                     filterOptions={patientFilterOptions}
                     getOptionLabel={(option) => option.patientName}
-                    renderInput={(params) => <TextField {...params} label="Patient" />}
-                    onChange={(e, value) => setFormData({...formData, patient: value })}
+                    value={formData.patient}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={isAppointmentMode ? "Patient (from appointment)" : "Patient"}
+                        placeholder={isAppointmentMode ? "Pre-filled from appointment" : "Select patient"}
+                      />
+                    )}
+                    onChange={(e, value) => setFormData({...formData, patient: value, patientId: value?.id || ''})}
                   />
                   {errors.patientId && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
@@ -244,13 +551,21 @@ const ConsultationRemarks = () => {
               {/* Doctor Selection */}
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.doctor} required>
-                  <Autocomplete 
+                  <Autocomplete
                     disablePortal
+                    disabled={isAppointmentMode}
                     options={doctors}
                     filterOptions={filterOptions}
                     getOptionLabel={(option) => `Dr. ${option.name}`}
-                    renderInput={(params) => <TextField {...params} label="Doctor" />}
-                    onChange={(e, value) => setFormData({ ...formData, doctor: value })}
+                    value={formData.doctor}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={isAppointmentMode ? "Doctor (from appointment)" : "Doctor"}
+                        placeholder={isAppointmentMode ? "Pre-filled from appointment" : "Select doctor"}
+                      />
+                    )}
+                    onChange={(e, value) => setFormData({ ...formData, doctor: value, doctorId: value?.id || '' })}
                   />
                   {errors.doctorId && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
@@ -319,9 +634,19 @@ const ConsultationRemarks = () => {
                       <Typography variant="h6" fontWeight={600}>
                         Prescriptions
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ({prescriptions.length} {prescriptions.length === 1 ? 'medication' : 'medications'})
-                      </Typography>
+                      {consultationMode === 'edit' && prescriptions.length > 0 && (
+                        <Chip
+                          label={`${prescriptions.length} medication${prescriptions.length !== 1 ? 's' : ''} prescribed`}
+                          size="small"
+                          color="info"
+                          variant="outlined"
+                        />
+                      )}
+                      {consultationMode === 'create' && (
+                        <Typography variant="body2" color="text.secondary">
+                          ({prescriptions.length} {prescriptions.length === 1 ? 'medication' : 'medications'})
+                        </Typography>
+                      )}
                     </Box>
                     <Button
                       startIcon={<AddIcon />}
@@ -577,7 +902,7 @@ const ConsultationRemarks = () => {
                     variant="contained"
                     startIcon={<NotesIcon />}
                   >
-                    Save Consultation
+                    {consultationMode === 'edit' ? 'Update Consultation' : 'Save Consultation'}
                   </Button>
                 </Box>
               </Grid>

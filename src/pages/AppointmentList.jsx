@@ -33,6 +33,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Clear as ClearIcon,
+  MedicalServices as MedicalServicesIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
@@ -51,6 +52,7 @@ const AppointmentList = () => {
   const canEdit = userRole === 'ADMIN' || userRole === 'DOCTOR'
   const canDelete = userRole === 'ADMIN'
   const canModify = userRole === 'ADMIN' // For creating new appointments
+  const canStartConsultation = userRole === 'ADMIN' || userRole === 'DOCTOR' // For starting consultations
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -58,6 +60,7 @@ const AppointmentList = () => {
     status: '',
     patientName: '',
     doctorName: '',
+    type: '',
   })
 
   // Ref to track latest filters for debounce
@@ -96,7 +99,7 @@ const AppointmentList = () => {
   const filteredAppointments = appointments || []
 
   // Check if any filter is active
-  const hasActiveFilters = filters.date || filters.status !== '' || filters.patientName || filters.doctorName
+  const hasActiveFilters = filters.date || filters.status !== '' || filters.patientName || filters.doctorName || filters.type !== ''
 
   // Helper function to apply filters and fetch from API
   const applyFilters = async (newFilters) => {
@@ -118,6 +121,9 @@ const AppointmentList = () => {
     }
     if (newFilters.doctorName) {
       apiFilters.doctorName = newFilters.doctorName
+    }
+    if (newFilters.type) {
+      apiFilters.type = newFilters.type
     }
 
     await fetchAppointments(apiFilters)
@@ -142,6 +148,9 @@ const AppointmentList = () => {
       if (currentFilters.doctorName) {
         apiFilters.doctorName = currentFilters.doctorName
       }
+      if (currentFilters.type) {
+        apiFilters.type = currentFilters.type
+      }
 
       fetchAppointments(apiFilters)
     }, 500),
@@ -155,6 +164,7 @@ const AppointmentList = () => {
       status: '',
       patientName: '',
       doctorName: '',
+      type: '',
     }
     await applyFilters(clearedFilters)
   }
@@ -223,6 +233,22 @@ const AppointmentList = () => {
     setDeleteDialog({ open: true, appointment })
   }
 
+  // Handle consultation button click based on appointment status
+  const handleConsultationClick = (appointment) => {
+    if (appointment.status === 'CANCEL' || appointment.status === 2) {
+      showNotification('Cannot create consultation for cancelled appointment', 'error')
+      return
+    }
+
+    if (appointment.status === 'DONE' || appointment.status === 1) {
+      // DONE status - redirect to view/edit existing consultation
+      navigate(`/consultation/${appointment.id}`)
+    } else {
+      // SCHEDULE status - redirect to create new consultation
+      navigate(`/consultation/${appointment.id}`)
+    }
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
       case 0:
@@ -255,10 +281,41 @@ const AppointmentList = () => {
     }
   }
 
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'NEW_PATIENT':
+        return 'info'
+      case 'FOLLOW_UP':
+        return 'success'
+      case 'NEW_DIAGNOSIS':
+        return 'warning'
+      case 'EMERGENCY':
+        return 'error'
+      default:
+        return 'default'
+    }
+  }
+
+  const getTypeLabel = (type) => {
+    switch (type) {
+      case 'NEW_PATIENT':
+        return 'New Patient'
+      case 'FOLLOW_UP':
+        return 'Follow Up'
+      case 'NEW_DIAGNOSIS':
+        return 'New Diagnosis'
+      case 'EMERGENCY':
+        return 'Emergency'
+      default:
+        return type || 'N/A'
+    }
+  }
+
   const headCells = [
     { id: 'appointmentdatetime', label: 'Date & Time' },
     { id: 'patient_name', label: 'Patient' },
     { id: 'doctor_name', label: 'Doctor' },
+    { id: 'type', label: 'Type' },
     { id: 'status', label: 'Status' },
     ...(canEdit ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
   ]
@@ -268,6 +325,7 @@ const AppointmentList = () => {
     filters.status !== '' ? filters.status : null,
     filters.patientName,
     filters.doctorName,
+    filters.type !== '' ? filters.type : null,
   ].filter(Boolean).length
 
   return (
@@ -338,7 +396,7 @@ const AppointmentList = () => {
 
             {/* Filters Grid */}
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
                     label="Date"
@@ -362,7 +420,7 @@ const AppointmentList = () => {
                 </LocalizationProvider>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Status</InputLabel>
                   <Select
@@ -380,7 +438,26 @@ const AppointmentList = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    label="Type"
+                    value={filters.type}
+                    onChange={(e) => {
+                      applyFilters({ ...filters, type: e.target.value })
+                    }}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="NEW_PATIENT">New Patient</MenuItem>
+                    <MenuItem value="FOLLOW_UP">Follow Up</MenuItem>
+                    <MenuItem value="NEW_DIAGNOSIS">New Diagnosis</MenuItem>
+                    <MenuItem value="EMERGENCY">Emergency</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={2.4}>
                 <TextField
                   label="Patient Name"
                   variant="outlined"
@@ -395,7 +472,7 @@ const AppointmentList = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <TextField
                   label="Doctor Name"
                   variant="outlined"
@@ -491,6 +568,13 @@ const AppointmentList = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
+                          label={getTypeLabel(appointment.type)}
+                          color={getTypeColor(appointment.type)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
                           label={getStatusLabel(appointment.status)}
                           color={getStatusColor(appointment.status)}
                           size="small"
@@ -498,9 +582,23 @@ const AppointmentList = () => {
                       </TableCell>
                       {canEdit && (
                         <TableCell align="center">
+                          {canStartConsultation && (
+                            <IconButton
+                              color="success"
+                              onClick={() => handleConsultationClick(appointment)}
+                              title={
+                                appointment.status === 'DONE' || appointment.status === 1
+                                  ? 'View Consultation'
+                                  : 'Start Consultation'
+                              }
+                            >
+                              <MedicalServicesIcon />
+                            </IconButton>
+                          )}
                           <IconButton
                             color="primary"
                             onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
+                            title="Edit Appointment"
                           >
                             <EditIcon />
                           </IconButton>
@@ -508,6 +606,7 @@ const AppointmentList = () => {
                             <IconButton
                               color="error"
                               onClick={() => openDeleteDialog(appointment)}
+                              title="Delete Appointment"
                             >
                               <DeleteIcon />
                             </IconButton>

@@ -16,5 +16,22 @@ export const consultationRemarksService = {
         const response = await api.post(`/medical-record/create/${patientId}/${doctorId}`, payload)
         const responseData = extractData(response)
         return responseData;
+    },
+
+    getReportByAppointmentId: async (id) => {
+        const response = await api.get(`/medical-record/appointment/${id}`)
+        const responseData = extractData(response)
+        return responseData;
+    },
+    updateReport: async(id, data) => {
+        const payload = {
+            remarks: data?.remarks,
+            keypoints: data?.keypoints,
+            diagnosis: data?.diagnosis,
+            prescriptions: data?.prescriptions
+        }
+        const response = await api.put(`/medical-record/${id}`, payload)
+        const responseData = extractData(response)
+        return responseData;
     }
 }

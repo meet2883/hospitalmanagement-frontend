@@ -11,6 +11,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Autocomplete,
+  createFilterOptions
 } from '@mui/material'
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
@@ -27,6 +29,7 @@ const AppointmentForm = () => {
     doctorId: '',
     appointmentdatetime: '',
     status: 'SCHEDULE',
+    type: 'NEW_PATIENT',
   })
 
   const [errors, setErrors] = useState({})
@@ -78,6 +81,7 @@ const AppointmentForm = () => {
     const payload = {
       appointmentdatetime: formData.appointmentdatetime,
       status: formData.status,
+      type: formData.type,
     }
 
     const success = await createAppointment(
@@ -97,6 +101,9 @@ const AppointmentForm = () => {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     return now.toISOString().slice(0, 16)
   }
+
+  const filterOptions = createFilterOptions({ matchFrom: 'any', stringify: (option) => option.name })
+  const patientFilterOptions = createFilterOptions({ matchFrom: 'any', stringify: (option) => option.patientName })
 
   return (
     <Box>
@@ -119,37 +126,42 @@ const AppointmentForm = () => {
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.patientId} required>
-                  <InputLabel>Patient</InputLabel>
-                  <Select
-                    name="patientId"
-                    value={formData.patientId}
-                    onChange={handleChange}
-                    label="Patient"
-                  >
-                    {patients.map((patient) => (
-                      <MenuItem key={patient.id} value={patient.id}>
-                        {patient.patientName} - {patient.phoneNumber}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                  <Autocomplete
+                    disablePortal
+                    // disabled={isAppointmentMode}
+                    options={patients}
+                    filterOptions={patientFilterOptions}
+                    getOptionLabel={(option) => option.patientName}
+                    value={formData.patient}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Patient"
+                        placeholder="Select patient"
+                      />
+                    )}
+                    onChange={(e, value) => setFormData({...formData, patient: value, patientId: value?.id || ''})}
+                  />
                 </FormControl>
               </Grid>
 
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.doctorId} required>
-                  <InputLabel>Doctor</InputLabel>
-                  <Select
-                    name="doctorId"
-                    value={formData.doctorId}
-                    onChange={handleChange}
-                    label="Doctor"
-                  >
-                    {doctors.map((doctor) => (
-                      <MenuItem key={doctor.id} value={doctor.id}>
-                        Dr. {doctor.name} - {doctor.specialization}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                  <Autocomplete
+                    disablePortal
+                    options={doctors}
+                    filterOptions={filterOptions}
+                    getOptionLabel={(option) => `Dr. ${option.name}`}
+                    value={formData.doctor}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={"Doctor"}
+                        placeholder={"Select doctor"}
+                      />
+                    )}
+                    onChange={(e, value) => setFormData({ ...formData, doctor: value, doctorId: value?.id || '' })}
+                  />
                 </FormControl>
               </Grid>
 
@@ -183,6 +195,23 @@ const AppointmentForm = () => {
                     <MenuItem value="SCHEDULE">Scheduled</MenuItem>
                     <MenuItem value="DONE">Completed</MenuItem>
                     <MenuItem value="CANCEL">Cancelled</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    label="Type"
+                  >
+                    <MenuItem value="NEW_PATIENT">New Patient</MenuItem>
+                    <MenuItem value="FOLLOW_UP">Follow Up</MenuItem>
+                    <MenuItem value="NEW_DIAGNOSIS">New Diagnosis</MenuItem>
+                    <MenuItem value="EMERGENCY">Emergency</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

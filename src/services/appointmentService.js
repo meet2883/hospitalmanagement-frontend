@@ -71,9 +71,15 @@ export const appointmentService = {
   },
 
   getByDoctor: async (id) => {
-    const response = await api.get(`/appointment/get-appointment-by-doctor/${id}`)
+    const response = await api.get(`/appointment/doctor/${id}/with-medical-status`)
     const data = extractData(response)
     return convertAppointmentKeys(data)
+  },
+
+  getAppointmentById: async (id) => {
+    const response = await api.get(`/appointment/${id}`)
+    const data = extractData(response)
+    return data
   },
 
   getAppointments: async (filters) => {
@@ -90,6 +96,9 @@ export const appointmentService = {
     }
     if (filters && filters.doctorName) {
       filter['doctorName'] = filters.doctorName
+    }
+    if (filters && filters.type) {
+      filter['type'] = filters.type
     }
 
     const response = await api.get(`/appointment/filter`, { params: filter })

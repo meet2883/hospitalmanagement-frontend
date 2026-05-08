@@ -41,8 +41,7 @@ const getNavigationItems = (role) => {
     { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon />, roles: ['ADMIN'] },
-    { text: 'Create User', path: '/users/new', icon: <PersonAddIcon />, roles: ['ADMIN'] },
-    { text: 'Consultation Remarks', path: '/consultation-remarks', icon: <NotesIcon />, roles: ['ADMIN', 'DOCTOR'] },
+    { text: 'Create User', path: '/users/new', icon: <PersonAddIcon />, roles: ['ADMIN'] }
   ]
 
   return allItems.filter(item => item.roles.includes(role))
