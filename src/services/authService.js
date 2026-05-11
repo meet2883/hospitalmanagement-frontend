@@ -1,9 +1,7 @@
 import Cookies from 'js-cookie'
-import { getToken as getSessionToken, setToken, removeToken } from '../utils/cookies'
 import api from '../utils/api'
 
-const TOKEN_COOKIE_NAME = 'auth_token'
-const USER_COOKIE_NAME = 'auth_user'
+const USER_COOKIE_NAME = 'auth_token'
 
 // Helper function to extract data from ApiResponse
 const extractData = (response) => {
@@ -34,35 +32,8 @@ const handleAuthError = (error) => {
 export const authService = {
   // Sign in with username and password
   signIn: async (username, password) => {
-    // debugger;
     try {
       const response = await api.post('/auth/sign-in', { email: username, password })
-
-      // Extract token from response headers (authorization header)
-      const authHeader = response.headers?.authorization || response.headers?.Authorization
-
-      let token = null
-      if (authHeader) {
-        token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader
-      }
-
-      if (token) {
-        // Store in sessionStorage for Authorization header (JS-readable)
-        setToken(token)
-
-        // Verify it was stored
-        const storedToken = sessionStorage.getItem('auth_token')
-
-        // Also store in cookie for backend compatibility
-        Cookies.set(TOKEN_COOKIE_NAME, token, {
-          expires: 7,
-          secure: false,
-          sameSite: 'Lax',
-          path: '/'
-        })
-      } else {
-        throw new Error('No token received from server')
-      }
 
       // Extract user data from response body
       const data = extractData(response)
@@ -88,6 +59,8 @@ export const authService = {
       }
       userData.role = cleanRole
 
+      // Store user data in cookie for frontend display
+      // Auth token is handled by httpOnly cookie (set by backend)
       Cookies.set(USER_COOKIE_NAME, JSON.stringify(userData), {
         expires: 7,
         secure: false,
@@ -95,12 +68,7 @@ export const authService = {
         path: '/'
       })
 
-      // Return consistent structure
-      const result = {
-        token: token,
-        user: userData
-      }
-      return result
+      return { user: userData }
     } catch (error) {
       console.error('Sign in error:', error)
       throw handleAuthError(error)
@@ -110,24 +78,15 @@ export const authService = {
   // Sign out
   signOut: async () => {
     try {
-      // Call logout API if available
+      // Call logout API if available (clears httpOnly cookie on backend)
       await api.post('/auth/sign-out')
     } catch (error) {
       console.error('Logout API error:', error)
       // Continue with local logout even if API fails
     } finally {
-      // Remove from sessionStorage
-      removeToken()
-
-      // Remove from cookies
-      Cookies.remove(TOKEN_COOKIE_NAME, { path: '/' })
+      // Remove user cookie (auth token is httpOnly - cleared by backend/cookie expiry)
       Cookies.remove(USER_COOKIE_NAME, { path: '/' })
     }
-  },
-
-  // Get stored token
-  getToken: () => {
-    return getSessionToken()
   },
 
   // Get stored user data
@@ -138,7 +97,8 @@ export const authService = {
 
   // Check if user is authenticated
   isAuthenticated: () => {
-    const token = getSessionToken()
-    return !!token
+    // Check if user data exists in cookie (auth is handled by httpOnly cookie)
+    const userStr = Cookies.get(USER_COOKIE_NAME, { path: '/' })
+    return !!userStr
   },
 }

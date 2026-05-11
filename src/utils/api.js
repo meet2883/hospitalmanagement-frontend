@@ -1,6 +1,5 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
-import { getToken } from './cookies'
 
 const api = axios.create({
   baseURL: '/api',
@@ -12,13 +11,7 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    const token = getToken()
-    if (token) {
-      // Ensure token doesn't already have "Bearer" prefix
-      const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token
-      config.headers.Authorization = `Bearer ${cleanToken}`
-    }
+    // No Authorization header needed - httpOnly cookie is sent automatically by browser
     return config
   },
   (error) => {
@@ -48,10 +41,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname
       if (currentPath !== '/signin' && currentPath !== '/sign-in') {
-        // Handle unauthorized access - clear token and redirect to signin
-        Cookies.remove('auth_token')
-        Cookies.remove('auth_user')
-        sessionStorage.removeItem('auth_token')
+        // Handle unauthorized access - clear user cookie and redirect to signin
+        Cookies.remove('auth_token', { path: '/' })
         window.location.href = '/signin'
       }
       // If we're on sign-in page, let the component handle the error
