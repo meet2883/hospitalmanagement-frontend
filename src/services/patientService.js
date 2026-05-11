@@ -58,6 +58,12 @@ export const patientService = {
     if (filters && filters.bloodgroup) {
       filter['bloodgroup'] = filters.bloodgroup
     }
+    if (filters && filters.pageNum !== undefined) {
+      filter['pageNum'] = filters.pageNum
+    }
+    if (filters && filters.pageSize !== undefined) {
+      filter['pageSize'] = filters.pageSize
+    }
 
     const response = await api.get(`/patient/filter`, { params: filter })
     const data = extractData(response)

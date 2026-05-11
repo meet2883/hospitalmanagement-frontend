@@ -28,6 +28,12 @@ export const AppProvider = ({ children }) => {
     return auth
   })
   const [patients, setPatients] = useState([])
+  const [patientsPagination, setPatientsPagination] = useState({
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 5,
+  })
   const [doctors, setDoctors] = useState([])
   const [appointments, setAppointments] = useState([])
   const [insurances, setInsurances] = useState([])
@@ -52,8 +58,26 @@ export const AppProvider = ({ children }) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await patientService.filterPatients(filters)
-      setPatients(data)
+      const response = await patientService.filterPatients(filters)
+      // Handle paginated response
+      if (response.content) {
+        setPatients(response.content)
+        setPatientsPagination({
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0,
+          number: response.number || 0,
+          size: response.size || 5,
+        })
+      } else {
+        // Fallback for non-paginated response
+        setPatients(response)
+        setPatientsPagination({
+          totalElements: response.length || 0,
+          totalPages: 1,
+          number: 0,
+          size: 5,
+        })
+      }
     } catch (err) {
       setError(err.message)
       showNotification(err.message || 'Failed to fetch patients', 'error')
@@ -357,6 +381,7 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     patients,
+    patientsPagination,
     doctors,
     appointments,
     insurances,

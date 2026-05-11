@@ -43,19 +43,21 @@ import { debounce } from 'lodash'
 
 const PatientList = () => {
   const navigate = useNavigate()
-  const { patients, fetchPatients, deletePatient, loading, user } = useApp()
+  const { patients, fetchPatients, deletePatient, loading, user, patientsPagination } = useApp()
   const [deleteDialog, setDeleteDialog] = useState({ open: false, patient: null })
 
   // Get user role
   const userRole = user?.role || 'EMPLOYEE'
   const canModify = userRole === 'ADMIN' || 'EMPLOYEE' // Only ADMIN can create, update, delete
 
-  // Filter states
+  // Filter states with pagination
   const [filters, setFilters] = useState({
     name: '',
     phoneNumber: '',
     gender: '',
     bloodgroup: '',
+    pageNum: 0,
+    pageSize: 5,
   })
 
   // Ref to track latest filters for debounce
@@ -64,16 +66,16 @@ const PatientList = () => {
     filtersRef.current = filters
   }, [filters])
 
-  // Pagination state
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(5)
+  // Pagination state (synced with filters)
+  const page = filters.pageNum
+  const rowsPerPage = filters.pageSize
 
   // Sorting state
   const [orderBy, setOrderBy] = useState('patientName')
   const [order, setOrder] = useState('asc')
 
   useEffect(() => {
-    fetchPatients()
+    fetchPatients({ pageNum: 0, pageSize: 5 })
   }, [fetchPatients])
 
   // Check if any filter is active
@@ -102,7 +104,11 @@ const PatientList = () => {
         apiFilters.bloodgroup = currentFilters.bloodgroup
       }
 
-      setPage(0)
+      // Always include pagination parameters
+      apiFilters.pageNum = 0
+      apiFilters.pageSize = currentFilters.pageSize
+
+      setFilters(prev => ({ ...prev, pageNum: 0 }))
       fetchPatients(apiFilters)
     }, 500),
     [fetchPatients]
@@ -126,7 +132,11 @@ const PatientList = () => {
       apiFilters.bloodgroup = mergedFilters.bloodgroup
     }
 
-    setPage(0)
+    // Reset to first page when filters change
+    apiFilters.pageNum = 0
+    apiFilters.pageSize = mergedFilters.pageSize
+
+    setFilters(prev => ({ ...prev, pageNum: 0, ...updatedFilters }))
     await fetchPatients(apiFilters)
   }
 
@@ -137,10 +147,11 @@ const PatientList = () => {
       phoneNumber: '',
       gender: '',
       bloodgroup: '',
+      pageNum: 0,
+      pageSize: filters.pageSize,
     }
     setFilters(emptyFilters)
-    await fetchPatients({})
-    setPage(0)
+    await fetchPatients({ pageNum: 0, pageSize: filters.pageSize })
   }
 
   // Use patients directly since API handles filtering
@@ -169,14 +180,38 @@ const PatientList = () => {
     return stabilized.map((el) => el[0])
   }, [filteredPatients, orderBy, order])
 
-  // Pagination
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage)
+  // Pagination - fetch from server
+  const handleChangePage = async (event, newPage) => {
+    const apiFilters = {
+      pageNum: newPage,
+      pageSize: filters.pageSize,
+    }
+
+    // Add existing filters
+    if (filters.name) apiFilters.name = filters.name
+    if (filters.phoneNumber) apiFilters.phoneNumber = filters.phoneNumber
+    if (filters.gender) apiFilters.gender = filters.gender
+    if (filters.bloodgroup) apiFilters.bloodgroup = filters.bloodgroup
+
+    setFilters(prev => ({ ...prev, pageNum: newPage }))
+    await fetchPatients(apiFilters)
   }
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10))
-    setPage(0)
+  const handleChangeRowsPerPage = async (event) => {
+    const newPageSize = parseInt(event.target.value, 10)
+    const apiFilters = {
+      pageNum: 0,
+      pageSize: newPageSize,
+    }
+
+    // Add existing filters
+    if (filters.name) apiFilters.name = filters.name
+    if (filters.phoneNumber) apiFilters.phoneNumber = filters.phoneNumber
+    if (filters.gender) apiFilters.gender = filters.gender
+    if (filters.bloodgroup) apiFilters.bloodgroup = filters.bloodgroup
+
+    setFilters(prev => ({ ...prev, pageNum: 0, pageSize: newPageSize }))
+    await fetchPatients(apiFilters)
   }
 
   // Sorting
@@ -190,10 +225,8 @@ const PatientList = () => {
     handleSort(property)
   }
 
-  const paginatedPatients = sortedPatients.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  )
+  // Server-side pagination - patients array already contains the current page
+  const displayPatients = sortedPatients
 
   const handleDelete = async () => {
     if (deleteDialog.patient) {
@@ -432,7 +465,7 @@ const PatientList = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedPatients.map((patient) => (
+                  displayPatients.map((patient) => (
                     <TableRow key={patient.id} hover>
                       <TableCell>
                         <Typography fontWeight={500}>
@@ -482,7 +515,7 @@ const PatientList = () => {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25, 50]}
             component="div"
-            count={sortedPatients.length}
+            count={patientsPagination.totalElements}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
