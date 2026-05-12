@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import Cookies from 'js-cookie'
 import { patientService } from '../services/patientService'
 import { doctorService } from '../services/doctorService'
 import { appointmentService } from '../services/appointmentService'
 import { insuranceService } from '../services/insuranceService'
 import { authService } from '../services/authService'
 import { consultationRemarksService } from '../services/consultationRemarkService'
+import { userService } from '../services/userService'
 
 const AppContext = createContext()
 
@@ -37,6 +39,13 @@ export const AppProvider = ({ children }) => {
   const [doctors, setDoctors] = useState([])
   const [appointments, setAppointments] = useState([])
   const [insurances, setInsurances] = useState([])
+  const [users, setUsers] = useState([])
+  const [usersPagination, setUsersPagination] = useState({
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 5,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [notification, setNotification] = useState({
@@ -51,6 +60,33 @@ export const AppProvider = ({ children }) => {
 
   const closeNotification = useCallback(() => {
     setNotification((prev) => ({ ...prev, open: false }))
+  }, [])
+
+  // Verify session with backend on app mount/refresh
+  useEffect(() => {
+    const verifyUserSession = async () => {
+      // Check if user cookie exists before verifying
+      if (!isAuthenticated) {
+        try {
+          const result = await authService.verifySession()
+          if (result.isValid && result.user) {
+            // Update user state with fresh data from backend
+            setUser(result.user)
+            setIsAuthenticated(true)
+          } else {
+            // Session invalid, clear state
+            setUser(null)
+            setIsAuthenticated(false)
+          }
+        } catch (error) {
+          console.error('Session verification error:', error)
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+      }
+    }
+
+    verifyUserSession()
   }, [])
 
   // Patient operations
@@ -379,12 +415,79 @@ export const AppProvider = ({ children }) => {
     }
   }
 
+  // User operations
+  const fetchUsers = useCallback(async (filters = {}) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await userService.getAllUsers(filters)
+      // Handle paginated response
+      if (response.content) {
+        setUsers(response.content)
+        setUsersPagination({
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0,
+          number: response.number || 0,
+          size: response.size || 5,
+        })
+      } else {
+        // Fallback for non-paginated response
+        setUsers(response)
+        setUsersPagination({
+          totalElements: response.length || 0,
+          totalPages: 1,
+          number: 0,
+          size: 5,
+        })
+      }
+    } catch (err) {
+      setError(err.message)
+      showNotification(err.message || 'Failed to fetch users', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showNotification])
+
+  const updateUser = async (id, userData) => {
+    setLoading(true)
+    try {
+      await userService.updateUser(id, userData)
+      await fetchUsers()
+      showNotification('User updated successfully')
+      return true
+    } catch (err) {
+      setError(err.message)
+      showNotification(err.message || 'Failed to update user', 'error')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteUser = async (id) => {
+    setLoading(true)
+    try {
+      await userService.deleteUser(id)
+      await fetchUsers()
+      showNotification('User deleted successfully')
+      return true
+    } catch (err) {
+      setError(err.message)
+      showNotification(err.message || 'Failed to delete user', 'error')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value = {
     patients,
     patientsPagination,
     doctors,
     appointments,
     insurances,
+    users,
+    usersPagination,
     loading,
     error,
     notification,
@@ -411,7 +514,10 @@ export const AppProvider = ({ children }) => {
     closeNotification,
     fetchAppointmentsByDoctorId,
     fetchAppointments,
-    createConsultationReport
+    createConsultationReport,
+    fetchUsers,
+    updateUser,
+    deleteUser,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

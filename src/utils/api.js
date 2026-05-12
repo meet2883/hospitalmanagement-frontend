@@ -37,15 +37,19 @@ api.interceptors.response.use(
     })
 
     // Only redirect on 401 if we're NOT on the sign-in page
-    // (don't redirect when user is trying to login with wrong credentials)
+    // and NOT calling /auth/me (session verification endpoint)
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname
-      if (currentPath !== '/signin' && currentPath !== '/sign-in') {
+      const isAuthMeCall = error.config?.url?.includes('/auth/me')
+
+      // Don't auto-redirect for /auth/me calls or when on signin page
+      // Let the calling code handle these cases
+      if (!isAuthMeCall && currentPath !== '/signin' && currentPath !== '/sign-in') {
         // Handle unauthorized access - clear user cookie and redirect to signin
         Cookies.remove('auth_token', { path: '/' })
         window.location.href = '/signin'
       }
-      // If we're on sign-in page, let the component handle the error
+      // If we're on sign-in page or calling /auth/me, let the component handle the error
     }
     if (error.response?.status === 403) {
       console.error('Forbidden - You may not have permission to access this resource')

@@ -19,6 +19,7 @@ const routeConfig = {
   '/insurance/new': ['ADMIN'],
   '/users': ['ADMIN'],
   '/users/new': ['ADMIN'],
+  '/users/:id/edit': ['ADMIN'],
   '/consultation-remarks': ['ADMIN', 'DOCTOR'],
 }
 

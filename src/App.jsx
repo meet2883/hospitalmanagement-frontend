@@ -12,6 +12,7 @@ import InsuranceList from './pages/InsuranceList'
 import InsuranceForm from './pages/InsuranceForm'
 import UserForm from './pages/UserForm'
 import ConsultationRemarks from './pages/ConsultationRemarks'
+import UserList from './pages/UserList'
 import SignIn from './pages/SignIn'
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
           <Route path="/insurance" element={<InsuranceList />} />
           <Route path="/insurance/new" element={<InsuranceForm />} />
           <Route path="/insurance/:id/edit" element={<InsuranceForm />} />
+          <Route path="/users" element={<UserList />} />
           <Route path="/users/new" element={<UserForm />} />
           <Route path="/consultation-remarks" element={<ConsultationRemarks />} />
           <Route path="/consultation/:appointmentId" element={<ConsultationRemarks />} />

@@ -5,7 +5,6 @@ const USER_COOKIE_NAME = 'auth_token'
 
 // Helper function to extract data from ApiResponse
 const extractData = (response) => {
-
   // Handle different response formats
   if (response.data?.success) {
     return response.data.data || response.data
@@ -79,26 +78,81 @@ export const authService = {
   signOut: async () => {
     try {
       // Call logout API if available (clears httpOnly cookie on backend)
-      await api.post('/auth/sign-out')
+      await api.post('/auth/logout')
     } catch (error) {
       console.error('Logout API error:', error)
       // Continue with local logout even if API fails
     } finally {
-      // Remove user cookie (auth token is httpOnly - cleared by backend/cookie expiry)
+      // Remove user cookie with exact same options as when setting
+      Cookies.remove(USER_COOKIE_NAME, {
+        path: '/',
+        secure: false,
+        sameSite: 'Lax'
+      })
+
+      // Also try removing with different path combinations to ensure cleanup
       Cookies.remove(USER_COOKIE_NAME, { path: '/' })
+      Cookies.remove(USER_COOKIE_NAME)
     }
   },
 
-  // Get stored user data
-  getUser: () => {
-    const userStr = Cookies.get(USER_COOKIE_NAME, { path: '/' })
-    return userStr ? JSON.parse(userStr) : null
+  // Verify session with backend - call this on page load/refresh
+  verifySession: async () => {
+    try {
+      const response = await api.post('/auth/me')
+      const data = extractData(response)
+
+      // User data from response: { email, id, name, role }
+      const userData = data || data.data || data.user
+
+      // Parse role to extract clean role name
+      let cleanRole = 'EMPLOYEE'
+      if (userData.role) {
+        const roleMatch = userData.role.match(/ROLE_(\w+)/)
+        if (roleMatch) {
+          cleanRole = roleMatch[1]
+        } else if (userData.role === 'ADMIN' || userData.role === 'DOCTOR' || userData.role === 'EMPLOYEE') {
+          cleanRole = userData.role
+        } else {
+          cleanRole = userData.role
+        }
+      }
+      userData.role = cleanRole
+
+      // Update user data in cookie
+      Cookies.set(USER_COOKIE_NAME, JSON.stringify(userData), {
+        expires: 7,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/'
+      })
+
+      return { user: userData, isValid: true }
+    } catch (error) {
+      // Session is invalid or expired
+      console.error('Session verification failed:', error.message)
+      // Clear user cookie
+      Cookies.remove(USER_COOKIE_NAME, { path: '/' })
+      return { user: null, isValid: false }
+    }
   },
 
-  // Check if user is authenticated
+  // Get stored user data (from cookie - for immediate UI display)
+  getUser: () => {
+    const userStr = Cookies.get(USER_COOKIE_NAME)
+    if (userStr) {
+      try {
+        return JSON.parse(userStr)
+      } catch (e) {
+        console.error('Error parsing user data from cookie:', e)
+        return null
+      }
+    }
+    return null
+  },
+
+  // Check if user is authenticated (cookie exists)
   isAuthenticated: () => {
-    // Check if user data exists in cookie (auth is handled by httpOnly cookie)
-    const userStr = Cookies.get(USER_COOKIE_NAME, { path: '/' })
-    return !!userStr
+    return !!Cookies.get(USER_COOKIE_NAME)
   },
 }

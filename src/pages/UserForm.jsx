@@ -135,9 +135,9 @@ const UserForm = () => {
       await userService.createUser(payload)
       showNotification('User created successfully', 'success')
 
-      // Navigate back to dashboard after successful creation
+      // Navigate back to users list after successful creation
       setTimeout(() => {
-        navigate('/dashboard')
+        navigate('/users')
       }, 500)
     } catch (error) {
       showNotification(error.message || 'Failed to create user', 'error')
@@ -183,10 +183,10 @@ const UserForm = () => {
       <Box sx={{ mb: 4 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/users')}
           sx={{ mb: 2 }}
         >
-          Back to Dashboard
+          Back to Users
         </Button>
         <Typography variant="h4" fontWeight={600} gutterBottom>
           Create New User
@@ -467,7 +467,7 @@ const UserForm = () => {
                   <Button
                     type="button"
                     variant="outlined"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/users')}
                     disabled={isSubmitting}
                     size="large"
                   >

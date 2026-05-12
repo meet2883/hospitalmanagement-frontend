@@ -26,7 +26,6 @@ import {
   Security as InsuranceIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
-  PersonAdd as PersonAddIcon,
   Notes as NotesIcon,
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -41,7 +40,7 @@ const getNavigationItems = (role) => {
     { text: 'Patients', path: '/patients', icon: <PeopleIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Appointments', path: '/appointments', icon: <AppointmentIcon />, roles: ['ADMIN', 'EMPLOYEE', 'DOCTOR'] },
     { text: 'Insurance', path: '/insurance', icon: <InsuranceIcon />, roles: ['ADMIN'] },
-    { text: 'Create User', path: '/users/new', icon: <PersonAddIcon />, roles: ['ADMIN'] }
+    { text: 'Users', path: '/users', icon: <PeopleIcon />, roles: ['ADMIN'] }
   ]
 
   return allItems.filter(item => item.roles.includes(role))
