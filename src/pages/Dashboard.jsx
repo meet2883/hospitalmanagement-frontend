@@ -110,29 +110,32 @@ const Dashboard = () => {
   )
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom fontWeight={600}>
-        Dashboard
-      </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom>
-        Welcome to Hospital Management System
-      </Typography>
+    <Box sx={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" fontWeight={600} sx={{ mb: 0.5 }}>
+          Dashboard
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Welcome to Hospital Management System
+        </Typography>
+      </Box>
 
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+      <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>
         {stats.map((stat) => (
           <Grid item xs={12} sm={6} md={3} key={stat.title}>
             <Card
               sx={{
                 cursor: 'pointer',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                height: '100%',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
+                  transform: 'translateY(-2px)',
                   boxShadow: 4,
                 },
               }}
               onClick={() => navigate(stat.path)}
             >
-              <CardContent>
+              <CardContent sx={{ p: 2 }}>
                 <Box
                   sx={{
                     display: 'flex',
@@ -142,13 +145,13 @@ const Dashboard = () => {
                 >
                   <Box>
                     <Typography
-                      variant="body2"
+                      variant="caption"
                       color="text.secondary"
                       gutterBottom
                     >
                       {stat.title}
                     </Typography>
-                    <Typography variant="h4" fontWeight={600}>
+                    <Typography variant="h5" fontWeight={600}>
                       {stat.value}
                     </Typography>
                   </Box>
@@ -156,7 +159,7 @@ const Dashboard = () => {
                     sx={{
                       backgroundColor: `${stat.color}20`,
                       borderRadius: 2,
-                      p: 1.5,
+                      p: 1,
                       color: stat.color,
                     }}
                   >
@@ -167,11 +170,9 @@ const Dashboard = () => {
             </Card>
           </Grid>
         ))}
-      </Grid>
 
-      <Grid container spacing={3} sx={{ mt: 4 }}>
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3 }}>
+        <Grid item xs={12} sx={{ flex: 1, minHeight: 0 }}>
+          <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6" fontWeight={600}>
                 Recent Appointments
@@ -184,21 +185,21 @@ const Dashboard = () => {
               </Button>
             </Box>
             {appointments.length > 0 ? (
-              <>
-                <TableContainer>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Date & Time</TableCell>
-                        <TableCell>Patient</TableCell>
-                        <TableCell>Doctor</TableCell>
-                        <TableCell>Status</TableCell>
+                        <TableCell sx={{ backgroundColor: 'transparent', fontWeight: 600 }}>Date & Time</TableCell>
+                        <TableCell sx={{ backgroundColor: 'transparent', fontWeight: 600 }}>Patient</TableCell>
+                        <TableCell sx={{ backgroundColor: 'transparent', fontWeight: 600 }}>Doctor</TableCell>
+                        <TableCell sx={{ backgroundColor: 'transparent', fontWeight: 600 }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {recentAppointments.map((appointment) => (
-                        <TableRow key={appointment.id} hover>
-                          <TableCell>
+                        <TableRow key={appointment.id} hover sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
+                          <TableCell sx={{ backgroundColor: 'transparent' }}>
                             {appointment.appointmentdatetime
                               ? format(
                                   new Date(appointment.appointmentdatetime),
@@ -206,9 +207,9 @@ const Dashboard = () => {
                                 )
                               : 'N/A'}
                           </TableCell>
-                          <TableCell>{appointment.patientName || appointment.patient_name || 'N/A'}</TableCell>
-                          <TableCell>{appointment.doctorName || appointment.doctor_name || 'N/A'}</TableCell>
-                          <TableCell>
+                          <TableCell sx={{ backgroundColor: 'transparent' }}>{appointment.patientName || appointment.patient_name || 'N/A'}</TableCell>
+                          <TableCell sx={{ backgroundColor: 'transparent' }}>{appointment.doctorName || appointment.doctor_name || 'N/A'}</TableCell>
+                          <TableCell sx={{ backgroundColor: 'transparent' }}>
                             <Chip
                               label={getStatusLabel(appointment.status)}
                               color={getStatusColor(appointment.status)}
@@ -231,46 +232,16 @@ const Dashboard = () => {
                     setAppointmentsRowsPerPage(parseInt(e.target.value, 10))
                     setAppointmentsPage(0)
                   }}
-                  sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 2 }}
+                  sx={{ borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}
                 />
-              </>
+              </Box>
             ) : (
-              <Typography variant="body2" color="text.secondary">
-                No appointments found
-              </Typography>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  No appointments found
+                </Typography>
+              </Box>
             )}
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600}>
-              Quick Stats
-            </Typography>
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Registered Patients
-              </Typography>
-              <Typography variant="h5" fontWeight={600}>
-                {patients.length}
-              </Typography>
-            </Box>
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                Total Appointments
-              </Typography>
-              <Typography variant="h5" fontWeight={600}>
-                {appointments.length}
-              </Typography>
-            </Box>
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                Insurance Plans
-              </Typography>
-              <Typography variant="h5" fontWeight={600}>
-                {insurances.length}
-              </Typography>
-            </Box>
           </Paper>
         </Grid>
       </Grid>
