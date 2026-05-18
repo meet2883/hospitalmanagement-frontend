@@ -2,61 +2,41 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Typography,
   Chip,
-  TablePagination,
-  TableSortLabel,
-  TextField,
-  Grid,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Alert,
+  IconButton,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  Clear as ClearIcon,
   MedicalServices as MedicalServicesIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
-import { format, parseISO } from 'date-fns'
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers'
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { format } from 'date-fns'
 import { debounce } from 'lodash'
+import Table from '../components/Table'
 
 const AppointmentList = () => {
   const navigate = useNavigate()
-  const { appointments, fetchAppointments, deleteAppointment, loading, user, fetchAppointmentsByDoctorId } = useApp()
+  const { appointments, fetchAppointments, deleteAppointment, loading, user } = useApp()
   const [deleteDialog, setDeleteDialog] = useState({ open: false, appointment: null })
 
   // Get user role
   const userRole = user?.role || 'EMPLOYEE'
   const canEdit = userRole === 'ADMIN' || userRole === 'DOCTOR'
   const canDelete = userRole === 'ADMIN'
-  const canModify = userRole === 'ADMIN' // For creating new appointments
-  const canStartConsultation = userRole === 'ADMIN' || userRole === 'DOCTOR' // For starting consultations
+  const canModify = userRole === 'ADMIN'
+  const canStartConsultation = userRole === 'ADMIN' || userRole === 'DOCTOR'
 
   // Filter states
   const [filters, setFilters] = useState({
-    date: null,
+    date: '',
     status: '',
     patientName: '',
     doctorName: '',
@@ -78,14 +58,11 @@ const AppointmentList = () => {
   const [order, setOrder] = useState('asc')
 
   useEffect(() => {
-    // Fetch appointments on mount and when user changes
     const fetchInitialData = async () => {
       if (userRole === "DOCTOR") {
-        // For doctors, set the filter and fetch with doctorName
-        setFilters({ doctorName: user?.name })
+        setFilters(prev => ({ ...prev, doctorName: user?.name || '' }))
         await fetchAppointments({ doctorName: user?.name })
       } else {
-        // For admin/employee, fetch all without filters
         await fetchAppointments()
       }
     }
@@ -94,89 +71,13 @@ const AppointmentList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole, user])
 
-  // Since API handles filtering, use appointments directly
-  // But we still need to handle sorting and pagination
-  const filteredAppointments = appointments || []
-
-  // Check if any filter is active
-  const hasActiveFilters = filters.date || filters.status !== '' || filters.patientName || filters.doctorName || filters.type !== ''
-
-  // Helper function to apply filters and fetch from API
-  const applyFilters = async (newFilters) => {
-    setFilters(newFilters)
-    setPage(0)
-
-    // Build API filter object (only include non-empty filters)
-    const apiFilters = {}
-    if (newFilters.date) {
-      // Format date as YYYY/MM/DD for backend
-      const formattedDate = `${newFilters.date.getFullYear()}/${(newFilters.date.getMonth() + 1).toString().padStart(2, '0')}/${newFilters.date.getDate().toString().padStart(2, '0')}`
-      apiFilters.date = formattedDate
-    }
-    if (newFilters.status) {
-      apiFilters.status = newFilters.status
-    }
-    if (newFilters.patientName) {
-      apiFilters.patientName = newFilters.patientName
-    }
-    if (newFilters.doctorName) {
-      apiFilters.doctorName = newFilters.doctorName
-    }
-    if (newFilters.type) {
-      apiFilters.type = newFilters.type
-    }
-
-    await fetchAppointments(apiFilters)
-  }
-
-  // Debounced fetch for text inputs - directly calls fetchAppointments
-  const debouncedFetch = useCallback(
-    debounce(() => {
-      const apiFilters = {}
-      const currentFilters = filtersRef.current
-
-      if (currentFilters.date) {
-        const formattedDate = `${currentFilters.date.getFullYear()}/${(currentFilters.date.getMonth() + 1).toString().padStart(2, '0')}/${currentFilters.date.getDate().toString().padStart(2, '0')}`
-        apiFilters.date = formattedDate
-      }
-      if (currentFilters.status) {
-        apiFilters.status = currentFilters.status
-      }
-      if (currentFilters.patientName) {
-        apiFilters.patientName = currentFilters.patientName
-      }
-      if (currentFilters.doctorName) {
-        apiFilters.doctorName = currentFilters.doctorName
-      }
-      if (currentFilters.type) {
-        apiFilters.type = currentFilters.type
-      }
-
-      fetchAppointments(apiFilters)
-    }, 500),
-    [fetchAppointments]
-  )
-
-  // Clear all filters
-  const clearFilters = async () => {
-    const clearedFilters = {
-      date: null,
-      status: '',
-      patientName: '',
-      doctorName: '',
-      type: '',
-    }
-    await applyFilters(clearedFilters)
-  }
-
-  // Sort appointments
+  // Sort appointments (client-side sorting)
   const sortedAppointments = React.useMemo(() => {
-    const stabilized = filteredAppointments.map((el, index) => [el, index])
-    stabilized.sort((a, b) => {
-      const aData = a[0]
-      const bData = b[0]
-      const aValue = aData[orderBy]
-      const bValue = bData[orderBy]
+    const appointmentsToSort = [...(appointments || [])]
+
+    appointmentsToSort.sort((a, b) => {
+      const aValue = a[orderBy]
+      const bValue = b[orderBy]
 
       let comparison = 0
       if (aValue == null) comparison = 1
@@ -193,32 +94,9 @@ const AppointmentList = () => {
 
       return order === 'asc' ? comparison : -comparison
     })
-    return stabilized.map((el) => el[0])
-  }, [filteredAppointments, orderBy, order])
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage)
-  }
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10))
-    setPage(0)
-  }
-
-  const handleSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc'
-    setOrder(isAsc ? 'desc' : 'asc')
-    setOrderBy(property)
-  }
-
-  const createSortHandler = (property) => () => {
-    handleSort(property)
-  }
-
-  const paginatedAppointments = sortedAppointments.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  )
+    return appointmentsToSort
+  }, [appointments, orderBy, order])
 
   const handleDelete = async () => {
     if (deleteDialog.appointment) {
@@ -233,20 +111,12 @@ const AppointmentList = () => {
     setDeleteDialog({ open: true, appointment })
   }
 
-  // Handle consultation button click based on appointment status
   const handleConsultationClick = (appointment) => {
     if (appointment.status === 'CANCEL' || appointment.status === 2) {
-      showNotification('Cannot create consultation for cancelled appointment', 'error')
       return
     }
 
-    if (appointment.status === 'DONE' || appointment.status === 1) {
-      // DONE status - redirect to view/edit existing consultation
-      navigate(`/consultation/${appointment.id}`)
-    } else {
-      // SCHEDULE status - redirect to create new consultation
-      navigate(`/consultation/${appointment.id}`)
-    }
+    navigate(`/consultation/${appointment.id}`)
   }
 
   const getStatusColor = (status) => {
@@ -311,327 +181,181 @@ const AppointmentList = () => {
     }
   }
 
-  const headCells = [
-    { id: 'appointmentdatetime', label: 'Date & Time' },
-    { id: 'patient_name', label: 'Patient' },
-    { id: 'doctor_name', label: 'Doctor' },
-    { id: 'type', label: 'Type' },
-    { id: 'status', label: 'Status' },
-    ...(canEdit ? [{ id: 'actions', label: 'Actions', sortable: false }] : []),
+  // Define columns
+  const columns = [
+    {
+      id: 'appointmentdatetime',
+      label: 'Date & Time',
+      format: (value) => {
+        if (!value) return 'N/A'
+        return format(new Date(value), 'MMM dd, yyyy HH:mm')
+      },
+    },
+    {
+      id: 'patient_name',
+      label: 'Patient',
+      cellSx: { fontWeight: 500 },
+      format: (value, row) => row.patient_name || row.patientName || 'N/A',
+    },
+    {
+      id: 'doctor_name',
+      label: 'Doctor',
+      format: (value, row) => row.doctor_name || row.doctorName || 'N/A',
+    },
+    {
+      id: 'type',
+      label: 'Type',
+      chip: (row, value) => ({
+        label: getTypeLabel(value),
+        color: getTypeColor(value),
+      }),
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      chip: (row, value) => ({
+        label: getStatusLabel(value),
+        color: getStatusColor(value),
+      }),
+    },
   ]
 
-  const activeFilterCount = [
-    filters.date,
-    filters.status !== '' ? filters.status : null,
-    filters.patientName,
-    filters.doctorName,
-    filters.type !== '' ? filters.type : null,
-  ].filter(Boolean).length
+  // Define actions
+  const actions = []
+
+  if (canStartConsultation) {
+    actions.push({
+      icon: <MedicalServicesIcon />,
+      label: (row) => (row.status === 'DONE' || row.status === 1) ? 'View Consultation' : 'Start Consultation',
+      color: 'success',
+      onClick: handleConsultationClick,
+      disabled: (row) => row.status === 'CANCEL' || row.status === 2,
+    })
+  }
+
+  if (canEdit) {
+    actions.push({
+      icon: <EditIcon />,
+      label: 'Edit',
+      color: 'primary',
+      onClick: (appointment) => navigate(`/appointments/${appointment.id}/edit`),
+    })
+  }
+
+  if (canDelete) {
+    actions.push({
+      icon: <DeleteIcon />,
+      label: 'Delete',
+      color: 'error',
+      onClick: openDeleteDialog,
+    })
+  }
+
+  // Define filters for table
+  const tableFilters = {
+    status: {
+      value: filters.status,
+      type: 'select',
+      label: 'Status',
+      options: [
+        { value: 'SCHEDULE', label: 'Scheduled' },
+        { value: 'DONE', label: 'Completed' },
+        { value: 'CANCEL', label: 'Cancelled' },
+      ],
+    },
+    type: {
+      value: filters.type,
+      type: 'select',
+      label: 'Type',
+      options: [
+        { value: 'NEW_PATIENT', label: 'New Patient' },
+        { value: 'FOLLOW_UP', label: 'Follow Up' },
+        { value: 'NEW_DIAGNOSIS', label: 'New Diagnosis' },
+        { value: 'EMERGENCY', label: 'Emergency' },
+      ],
+    },
+    patientName: {
+      value: filters.patientName,
+      type: 'text',
+      label: 'Patient Name',
+    },
+    doctorName: {
+      value: filters.doctorName,
+      type: 'text',
+      label: 'Doctor Name',
+    },
+  }
+
+  // Handle filter change
+  const handleFilterChange = async (newFilters) => {
+    setFilters(newFilters)
+
+    // Build API filters
+    const apiFilters = {}
+    if (newFilters.status) apiFilters.status = newFilters.status
+    if (newFilters.type) apiFilters.type = newFilters.type
+    if (newFilters.patientName) apiFilters.patientName = newFilters.patientName
+    if (newFilters.doctorName) apiFilters.doctorName = newFilters.doctorName
+
+    setPage(0)
+    await fetchAppointments(apiFilters)
+  }
+
+  // Clear all filters
+  const handleClearFilters = async () => {
+    const emptyFilters = {
+      date: '',
+      status: '',
+      patientName: '',
+      doctorName: '',
+      type: '',
+    }
+
+    setFilters(emptyFilters)
+    setPage(0)
+    await fetchAppointments()
+  }
+
+  // Handle page change
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  // Handle rows per page change
+  const handleChangeRowsPerPage = (event) => {
+    const newPageSize = parseInt(event.target.value, 10)
+    setRowsPerPage(newPageSize)
+    setPage(0)
+  }
 
   return (
-    <Box>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-        }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            Appointments
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {canModify ? 'Manage' : canEdit ? 'View & Update' : 'View'} appointments ({filteredAppointments.length} of {(appointments || []).length})
-          </Typography>
-        </Box>
-        {canModify && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/appointments/new')}
-          >
-            Schedule Appointment
-          </Button>
-        )}
-      </Box>
+    <Box sx={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+      <Table
+        title="Appointments"
+        columns={columns}
+        data={sortedAppointments}
+        loading={loading}
+        filters={tableFilters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        actions={actions.length > 0 ? actions : null}
+        pagination={true}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        totalCount={sortedAppointments.length}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        onAddClick={canModify ? {
+          label: 'Schedule Appointment',
+          icon: <AddIcon />,
+          onClick: () => navigate('/appointments/new'),
+        } : null}
+        emptyMessage="No appointments found."
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      />
 
-      <Card>
-        <CardContent>
-          {/* Filter Section */}
-          <Box sx={{ mb: 3 }}>
-            {/* Header */}
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2,
-              }}
-            >
-              <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                Filters
-                {activeFilterCount > 0 && (
-                  <Chip
-                    label={`${activeFilterCount} active`}
-                    size="small"
-                    color="primary"
-                    sx={{ fontSize: '0.75rem' }}
-                  />
-                )}
-              </Typography>
-              {hasActiveFilters && (
-                <Button
-                  variant="text"
-                  size="small"
-                  startIcon={<ClearIcon />}
-                  onClick={clearFilters}
-                  color="secondary"
-                >
-                  Clear All
-                </Button>
-              )}
-            </Box>
-
-            {/* Filters Grid */}
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={2.4}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DatePicker
-                    label="Date"
-                    value={filters.date}
-                    onChange={(newValue) => {
-                      applyFilters({ ...filters, date: newValue })
-                    }}
-                    format="MMM dd, yyyy"
-                    desktopModeMediaQuery="@media (hover: none)"
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: 'small',
-                      },
-                      actionBar: {
-                        actions: ['clear', 'today'],
-                      },
-                    }}
-                    closeOnSelect
-                  />
-                </LocalizationProvider>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    label="Status"
-                    value={filters.status}
-                    onChange={(e) => {
-                      applyFilters({ ...filters, status: e.target.value })
-                    }}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="SCHEDULE">Scheduled</MenuItem>
-                    <MenuItem value="DONE">Completed</MenuItem>
-                    <MenuItem value="CANCEL">Cancelled</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    label="Type"
-                    value={filters.type}
-                    onChange={(e) => {
-                      applyFilters({ ...filters, type: e.target.value })
-                    }}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="NEW_PATIENT">New Patient</MenuItem>
-                    <MenuItem value="FOLLOW_UP">Follow Up</MenuItem>
-                    <MenuItem value="NEW_DIAGNOSIS">New Diagnosis</MenuItem>
-                    <MenuItem value="EMERGENCY">Emergency</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.4}>
-                <TextField
-                  label="Patient Name"
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  value={filters.patientName}
-                  onChange={(e) => {
-                    setFilters(prev => ({ ...prev, patientName: e.target.value }))
-                    debouncedFetch()
-                  }}
-                  placeholder="Search patient..."
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.4}>
-                <TextField
-                  label="Doctor Name"
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  value={filters.doctorName}
-                  onChange={(e) => {
-                    setFilters(prev => ({ ...prev, doctorName: e.target.value }))
-                    debouncedFetch()
-                  }}
-                  placeholder="Search doctor..."
-                />
-              </Grid>
-            </Grid>
-
-            {/* Active Filters Summary */}
-            {hasActiveFilters && (
-              <Alert
-                severity="info"
-                sx={{
-                  mt: 2,
-                  borderRadius: 1,
-                  '& .MuiAlert-message': {
-                    py: 0.5,
-                  },
-                }}
-              >
-                <Typography variant="body2">
-                  Found <strong>{filteredAppointments.length}</strong> appointment{filteredAppointments.length !== 1 ? 's' : ''} matching your filters
-                </Typography>
-              </Alert>
-            )}
-          </Box>
-
-          <TableContainer component={Paper} elevation={0}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  {headCells.map((headCell) => (
-                    <TableCell
-                      key={headCell.id}
-                      align={headCell.id === 'actions' ? 'center' : 'left'}
-                      sortDirection={orderBy === headCell.id ? order : false}
-                    >
-                      {headCell.sortable !== false ? (
-                        <TableSortLabel
-                          active={orderBy === headCell.id}
-                          direction={orderBy === headCell.id ? order : 'asc'}
-                          onClick={createSortHandler(headCell.id)}
-                        >
-                          {headCell.label}
-                        </TableSortLabel>
-                      ) : (
-                        headCell.label
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={canEdit ? 5 : 4} align="center">
-                      <Typography>Loading...</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : sortedAppointments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={canEdit ? 5 : 4} align="center">
-                      <Typography color="text.secondary">
-                        {hasActiveFilters ? 'No appointments match your filters' : 'No appointments found'}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedAppointments.map((appointment) => (
-                    <TableRow key={appointment.id} hover>
-                      <TableCell>
-                        {appointment.appointmentdatetime
-                          ? format(
-                              new Date(appointment.appointmentdatetime),
-                              'MMM dd, yyyy HH:mm'
-                            )
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <Typography fontWeight={500}>
-                          {appointment.patient_name || appointment.patientName || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {appointment.doctor_name || appointment.doctorName || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={getTypeLabel(appointment.type)}
-                          color={getTypeColor(appointment.type)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={getStatusLabel(appointment.status)}
-                          color={getStatusColor(appointment.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      {canEdit && (
-                        <TableCell align="center">
-                          {canStartConsultation && (
-                            <IconButton
-                              color="success"
-                              onClick={() => handleConsultationClick(appointment)}
-                              title={
-                                appointment.status === 'DONE' || appointment.status === 1
-                                  ? 'View Consultation'
-                                  : 'Start Consultation'
-                              }
-                            >
-                              <MedicalServicesIcon />
-                            </IconButton>
-                          )}
-                          <IconButton
-                            color="primary"
-                            onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
-                            title="Edit Appointment"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          {canDelete && (
-                            <IconButton
-                              color="error"
-                              onClick={() => openDeleteDialog(appointment)}
-                              title="Delete Appointment"
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={sortedAppointments.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </CardContent>
-      </Card>
-
+      {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, appointment: null })}
@@ -639,14 +363,11 @@ const AppointmentList = () => {
         <DialogTitle>Delete Appointment</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete this appointment? This action cannot
-            be undone.
+            Are you sure you want to delete this appointment? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => setDeleteDialog({ open: false, appointment: null })}
-          >
+          <Button onClick={() => setDeleteDialog({ open: false, appointment: null })}>
             Cancel
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained">

@@ -2,8 +2,6 @@ import React, { useState } from 'react'
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Typography,
   TextField,
   InputAdornment,
@@ -14,7 +12,6 @@ import {
   MenuItem,
   CircularProgress,
   Grid,
-  Paper,
   Chip,
 } from '@mui/material'
 import {
@@ -178,59 +175,62 @@ const UserForm = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ p: 1 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 2, maxWidth: 800 }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/users')}
-          sx={{ mb: 2 }}
+          size="small"
         >
           Back to Users
         </Button>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
+        <Typography variant="h5" fontWeight={600} sx={{ mt: 1 }}>
           Create New User
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           Add a new user to the Hospital Management System
         </Typography>
       </Box>
 
-      <Card
-        elevation={0}
-        sx={{
-          maxWidth: 800,
-          mx: 'auto',
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <CardContent sx={{ p: 4 }}>
+      {/* Form Card */}
+      <Box sx={{ maxWidth: 800 }}>
+        <Box
+          sx={{
+            backgroundColor: 'background.paper',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            p: 3,
+          }}
+        >
           {/* Form Info Banner */}
-          <Paper
-            elevation={0}
+          <Box
             sx={{
-              p: 2,
-              mb: 3,
-              bgcolor: 'primary.50',
-              border: '1px solid',
-              borderColor: 'primary.200',
-              borderRadius: 2,
+              p: 1.5,
+              mb: 2.5,
+              backgroundColor: 'info.lighter',
+              color: 'info.dark',
+              borderRadius: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              <strong>Note:</strong> All fields marked with * are required. Passwords must be at least 6 characters long.
+            <Typography variant="body2" fontWeight={500}>
+              All fields marked with * are required. Passwords must be at least 6 characters.
             </Typography>
-          </Paper>
+          </Box>
 
           <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
+            <Grid container spacing={2.5}>
               {/* Name Field */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   name="name"
                   label="Full Name"
                   fullWidth
+                  size="small"
                   value={formData.name}
                   onChange={handleChange}
                   error={!!errors.name}
@@ -256,6 +256,7 @@ const UserForm = () => {
                   label="Email Address"
                   type="email"
                   fullWidth
+                  size="small"
                   value={formData.email}
                   onChange={handleChange}
                   error={!!errors.email}
@@ -276,7 +277,7 @@ const UserForm = () => {
 
               {/* Role Selection */}
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth required disabled={isSubmitting}>
+                <FormControl fullWidth required disabled={isSubmitting} size="small">
                   <InputLabel>Role</InputLabel>
                   <Select
                     name="role"
@@ -286,24 +287,24 @@ const UserForm = () => {
                   >
                     <MenuItem value="ADMIN">
                       <Box>
-                        <Typography variant="inherit">Admin</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="inherit" fontSize="0.875rem">Admin</Typography>
+                        <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
                           Full system access
                         </Typography>
                       </Box>
                     </MenuItem>
                     <MenuItem value="DOCTOR">
                       <Box>
-                        <Typography variant="inherit">Doctor</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="inherit" fontSize="0.875rem">Doctor</Typography>
+                        <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
                           Medical practitioner
                         </Typography>
                       </Box>
                     </MenuItem>
                     <MenuItem value="EMPLOYEE">
                       <Box>
-                        <Typography variant="inherit">Employee</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="inherit" fontSize="0.875rem">Employee</Typography>
+                        <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
                           Staff member
                         </Typography>
                       </Box>
@@ -311,7 +312,7 @@ const UserForm = () => {
                   </Select>
                 </FormControl>
                 {formData.role && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                     {getRoleDescription(formData.role)}
                   </Typography>
                 )}
@@ -325,6 +326,7 @@ const UserForm = () => {
                     required
                     disabled={isSubmitting}
                     error={!!errors.specialization}
+                    size="small"
                   >
                     <InputLabel>Specialization</InputLabel>
                     <Select
@@ -332,11 +334,6 @@ const UserForm = () => {
                       value={formData.specialization}
                       onChange={handleChange}
                       label="Specialization"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <LocalHospitalIcon color="action" fontSize="small" />
-                        </InputAdornment>
-                      }
                     >
                       {SPECIALIZATIONS.map((spec) => (
                         <MenuItem key={spec} value={spec}>
@@ -345,7 +342,7 @@ const UserForm = () => {
                       ))}
                     </Select>
                     {errors.specialization && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
                         {errors.specialization}
                       </Typography>
                     )}
@@ -360,6 +357,7 @@ const UserForm = () => {
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
                   fullWidth
+                  size="small"
                   value={formData.password}
                   onChange={handleChange}
                   error={!!errors.password}
@@ -380,11 +378,12 @@ const UserForm = () => {
                           onClick={togglePasswordVisibility}
                           edge="end"
                           disabled={isSubmitting}
+                          size="small"
                           aria-label={
                             showPassword ? 'Hide password' : 'Show password'
                           }
                         >
-                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          {showPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -399,6 +398,7 @@ const UserForm = () => {
                   label="Verify Password"
                   type={showVerifyPassword ? 'text' : 'password'}
                   fullWidth
+                  size="small"
                   value={formData.verifyPassword}
                   onChange={handleChange}
                   error={!!errors.verifyPassword}
@@ -419,6 +419,7 @@ const UserForm = () => {
                           onClick={toggleVerifyPasswordVisibility}
                           edge="end"
                           disabled={isSubmitting}
+                          size="small"
                           aria-label={
                             showVerifyPassword
                               ? 'Hide password'
@@ -426,9 +427,9 @@ const UserForm = () => {
                           }
                         >
                           {showVerifyPassword ? (
-                            <VisibilityOffIcon />
+                            <VisibilityOffIcon fontSize="small" />
                           ) : (
-                            <VisibilityIcon />
+                            <VisibilityIcon fontSize="small" />
                           )}
                         </IconButton>
                       </InputAdornment>
@@ -440,8 +441,8 @@ const UserForm = () => {
               {/* Selected Role Badge */}
               {formData.role && (
                 <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" color="text.secondary">
                       Creating user as:
                     </Typography>
                     <Chip
@@ -451,7 +452,7 @@ const UserForm = () => {
                     />
                     {isDoctor && formData.specialization && (
                       <>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary">
                           with specialization:
                         </Typography>
                         <Chip label={formData.specialization} variant="outlined" size="small" />
@@ -463,13 +464,13 @@ const UserForm = () => {
 
               {/* Action Buttons */}
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', mt: 1 }}>
                   <Button
                     type="button"
                     variant="outlined"
                     onClick={() => navigate('/users')}
                     disabled={isSubmitting}
-                    size="large"
+                    size="small"
                   >
                     Cancel
                   </Button>
@@ -479,21 +480,21 @@ const UserForm = () => {
                     disabled={isSubmitting}
                     startIcon={
                       isSubmitting ? (
-                        <CircularProgress size={20} />
+                        <CircularProgress size={16} />
                       ) : (
-                        <PersonAddIcon />
+                        <PersonAddIcon fontSize="small" />
                       )
                     }
-                    size="large"
+                    size="small"
                   >
-                    {isSubmitting ? 'Creating User...' : 'Create User'}
+                    {isSubmitting ? 'Creating...' : 'Create User'}
                   </Button>
                 </Box>
               </Grid>
             </Grid>
           </form>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
     </Box>
   )
 }

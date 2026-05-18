@@ -2,34 +2,20 @@ import React, { useEffect, useState } from 'react'
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  TablePagination,
-  TableSortLabel,
-  InputAdornment,
+  Typography,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
+import Table from '../components/Table'
 
 const InsuranceList = () => {
   const navigate = useNavigate()
@@ -49,20 +35,22 @@ const InsuranceList = () => {
     fetchInsurances()
   }, [fetchInsurances])
 
-  // Filter insurances based on search term
-  const filteredInsurances = insurances.filter((insurance) =>
-    insurance.policyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    insurance.policyProvider?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter and sort insurances
+  const filteredInsurances = React.useMemo(() => {
+    let result = [...(insurances || [])]
 
-  // Sort insurances
-  const sortedInsurances = React.useMemo(() => {
-    const stabilized = filteredInsurances.map((el, index) => [el, index])
-    stabilized.sort((a, b) => {
-      const aData = a[0]
-      const bData = b[0]
-      const aValue = aData[orderBy]
-      const bValue = bData[orderBy]
+    // Apply search filter
+    if (searchTerm) {
+      result = result.filter((insurance) =>
+        insurance.policyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        insurance.policyProvider?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      const aValue = a[orderBy]
+      const bValue = b[orderBy]
 
       let comparison = 0
       if (aValue == null) comparison = 1
@@ -75,34 +63,9 @@ const InsuranceList = () => {
 
       return order === 'asc' ? comparison : -comparison
     })
-    return stabilized.map((el) => el[0])
-  }, [filteredInsurances, orderBy, order])
 
-  // Pagination
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage)
-  }
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10))
-    setPage(0)
-  }
-
-  // Sorting
-  const handleSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc'
-    setOrder(isAsc ? 'desc' : 'asc')
-    setOrderBy(property)
-  }
-
-  const createSortHandler = (property) => () => {
-    handleSort(property)
-  }
-
-  const paginatedInsurances = sortedInsurances.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  )
+    return result
+  }, [insurances, searchTerm, orderBy, order])
 
   const handleDelete = async () => {
     if (deleteDialog.insurance) {
@@ -117,143 +80,96 @@ const InsuranceList = () => {
     setDeleteDialog({ open: true, insurance })
   }
 
-  const headCells = [
-    { id: 'policyName', label: 'Policy Name' },
-    { id: 'policyProvider', label: 'Provider' },
-    { id: 'actions', label: 'Actions', sortable: false },
+  // Define columns
+  const columns = [
+    {
+      id: 'policyName',
+      label: 'Policy Name',
+      cellSx: { fontWeight: 500 },
+    },
+    {
+      id: 'policyProvider',
+      label: 'Provider',
+    },
   ]
 
+  // Define actions
+  const actions = [
+    {
+      icon: <EditIcon />,
+      label: 'Edit',
+      color: 'primary',
+      onClick: (insurance) => navigate(`/insurance/${insurance.id}/edit`),
+    },
+    {
+      icon: <DeleteIcon />,
+      label: 'Delete',
+      color: 'error',
+      onClick: openDeleteDialog,
+    },
+  ]
+
+  // Define filters for table
+  const tableFilters = {
+    search: {
+      value: searchTerm,
+      type: 'text',
+      label: 'Search',
+    },
+  }
+
+  // Handle filter change
+  const handleFilterChange = (newFilters) => {
+    setSearchTerm(newFilters.search || '')
+    setPage(0)
+  }
+
+  // Clear filters
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setPage(0)
+  }
+
+  // Handle page change
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  // Handle rows per page change
+  const handleChangeRowsPerPage = (event) => {
+    const newPageSize = parseInt(event.target.value, 10)
+    setRowsPerPage(newPageSize)
+    setPage(0)
+  }
+
   return (
-    <Box>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
+    <Box sx={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+      <Table
+        title="Insurance Plans"
+        columns={columns}
+        data={filteredInsurances}
+        loading={loading}
+        filters={tableFilters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        actions={actions}
+        pagination={true}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        totalCount={filteredInsurances.length}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        onAddClick={{
+          label: 'Add Insurance Plan',
+          icon: <AddIcon />,
+          onClick: () => navigate('/insurance/new'),
         }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            Insurance Plans
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage insurance plans ({filteredInsurances.length} total)
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/insurance/new')}
-        >
-          Add Insurance Plan
-        </Button>
-      </Box>
+        emptyMessage="No insurance plans found."
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      />
 
-      <Card>
-        <CardContent>
-          <TextField
-            placeholder="Search insurance plans..."
-            variant="outlined"
-            size="small"
-            fullWidth
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setPage(0)
-            }}
-            sx={{ mb: 3 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <TableContainer component={Paper} elevation={0}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  {headCells.map((headCell) => (
-                    <TableCell
-                      key={headCell.id}
-                      align={headCell.id === 'actions' ? 'center' : 'left'}
-                      sortDirection={orderBy === headCell.id ? order : false}
-                    >
-                      {headCell.sortable !== false ? (
-                        <TableSortLabel
-                          active={orderBy === headCell.id}
-                          direction={orderBy === headCell.id ? order : 'asc'}
-                          onClick={createSortHandler(headCell.id)}
-                        >
-                          {headCell.label}
-                        </TableSortLabel>
-                      ) : (
-                        headCell.label
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={3} align="center">
-                      <Typography>Loading...</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : sortedInsurances.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} align="center">
-                      <Typography color="text.secondary">
-                        No insurance plans found
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedInsurances.map((insurance) => (
-                    <TableRow key={insurance.id} hover>
-                      <TableCell>
-                        <Typography fontWeight={500}>
-                          {insurance.policyName}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{insurance.policyProvider}</TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          color="primary"
-                          onClick={() => navigate(`/insurance/${insurance.id}/edit`)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => openDeleteDialog(insurance)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={sortedInsurances.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </CardContent>
-      </Card>
-
+      {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, insurance: null })}
@@ -261,14 +177,11 @@ const InsuranceList = () => {
         <DialogTitle>Delete Insurance Plan</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete insurance plan "
-            {deleteDialog.insurance?.policyName}"? This action cannot be undone.
+            Are you sure you want to delete insurance plan "{deleteDialog.insurance?.policyName}"? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => setDeleteDialog({ open: false, insurance: null })}
-          >
+          <Button onClick={() => setDeleteDialog({ open: false, insurance: null })}>
             Cancel
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained">
