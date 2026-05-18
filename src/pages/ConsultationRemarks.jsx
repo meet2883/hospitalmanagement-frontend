@@ -88,14 +88,18 @@ const ConsultationRemarks = () => {
           try {
             medicalRecord = await consultationRemarksService.getReportByAppointmentId(appointmentId)
           } catch (error) {
-            showNotification('No medical record found yet for this appointment', 'error')
+            // 404 is expected for new consultations - not an actual error
+            if (error.response?.status !== 404) {
+              console.error('Error fetching medical record:', error)
+            }
+            // medicalRecord stays null, which is expected for new consultations
           }
 
           // Check appointment status and determine consultation mode
           const isAppointmentDone = appointmentData.status === 'DONE' || appointmentData.status === 1
 
           // Pre-fill patient and doctor - find actual objects from arrays
-          const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+          const selectedPatient = patientsData.data.find(p => p.id === appointmentData?.patient?.id)
           const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
 
           if (isAppointmentDone && medicalRecord && medicalRecord.id) {
@@ -135,7 +139,7 @@ const ConsultationRemarks = () => {
             setConsultationMode('create')
             setIsEditMode(false)
 
-            const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+            const selectedPatient = patientsData.data.find(p => p.id === appointmentData?.patient?.id)
             const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
 
             setFormData(prev => ({
@@ -150,7 +154,7 @@ const ConsultationRemarks = () => {
             setConsultationMode('create')
             setIsEditMode(false)
 
-            const selectedPatient = patientsData.find(p => p.id === appointmentData?.patient?.id)
+            const selectedPatient = patientsData.data.find(p => p.id === appointmentData?.patient?.id)
             const selectedDoctor = doctorsData.find(d => d.id === appointmentData?.doctor?.id)
 
             setFormData(prev => ({
@@ -168,7 +172,10 @@ const ConsultationRemarks = () => {
           }
         }
       } catch (error) {
-        showNotification('Failed to load data', 'error')
+        console.error('Error in fetchData:', error)
+        // Show specific error message based on what failed
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to load data'
+        showNotification(errorMessage, 'error')
       } finally {
         setLoading(false)
       }

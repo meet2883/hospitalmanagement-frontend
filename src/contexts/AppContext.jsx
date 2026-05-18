@@ -96,8 +96,8 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await patientService.filterPatients(filters)
       // Handle paginated response
-      if (response.content) {
-        setPatients(response.content)
+      if (response.data) {
+        setPatients(response.data)
         setPatientsPagination({
           totalElements: response.totalElements || 0,
           totalPages: response.totalPages || 0,
